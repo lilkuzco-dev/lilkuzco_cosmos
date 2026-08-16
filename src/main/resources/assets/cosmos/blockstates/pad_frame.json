@@ -1,0 +1,5 @@
+{
+  "variants": {
+    "": { "model": "cosmos:block/pad_frame" }
+  }
+}

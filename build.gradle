@@ -1,0 +1,62 @@
+plugins {
+	id 'net.fabricmc.fabric-loom' version "${loom_version}"
+}
+
+version = project.mod_version
+group = project.maven_group
+
+base { archivesName = 'lilkuzco-cosmos' }
+
+repositories {
+	// kinetics-core is published here by `../lilkuzco_kinetics/gradlew :core:publishToMavenLocal`.
+	// Cosmos consumes it as a normal library and adds NO physics of its own.
+	mavenLocal()
+}
+
+loom {
+	splitEnvironmentSourceSets()
+
+	mods {
+		"cosmos" {
+			sourceSet sourceSets.main
+			sourceSet sourceSets.client
+		}
+	}
+}
+
+dependencies {
+	minecraft "com.mojang:minecraft:${project.minecraft_version}"
+	implementation "net.fabricmc:fabric-loader:${project.loader_version}"
+	implementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
+
+	// The motion authority. Compile-time only: at runtime the kinetics mod jar supplies it,
+	// which is why fabric.mod.json declares a hard dependency on it.
+	compileOnly "dev.lilkuzco:kinetics-core:${project.kinetics_version}"
+
+	// The kinetics Fabric adapter (KineticsMod / KineticsService / MinecraftWorldProbe) ships in
+	// the mod jar, not in kinetics-core — core has no Minecraft dependency by design. At runtime
+	// the loaded kinetics mod provides these, so compileOnly is exactly right.
+	compileOnly files("${rootDir}/../lilkuzco_kinetics/fabric/build/libs/lilkuzco-kinetics-0.1.2.jar")
+	testImplementation "dev.lilkuzco:kinetics-core:${project.kinetics_version}"
+}
+
+processResources {
+	inputs.property "version", project.version
+	filesMatching("fabric.mod.json") { expand "version": project.version }
+}
+
+tasks.withType(JavaCompile).configureEach {
+	it.options.release = 25
+	it.options.encoding = 'UTF-8'
+	it.options.compilerArgs += ['-Xlint:all,-serial']
+}
+
+java {
+	withSourcesJar()
+	sourceCompatibility = JavaVersion.VERSION_25
+	targetCompatibility = JavaVersion.VERSION_25
+}
+
+jar {
+	from("LICENSE") { rename { "${it}_lilkuzco_cosmos" } }
+}

@@ -1,0 +1,7 @@
+{
+  "_comment": "Grade 1. crude_empire's crude oil, referenced through ITS tag so cosmos never names another mod's fluid directly. required:false means a world without crude_empire loads cleanly with an empty grade rather than erroring.",
+  "replace": false,
+  "values": [
+    { "id": "#crude_empire:crude_oil", "required": false }
+  ]
+}

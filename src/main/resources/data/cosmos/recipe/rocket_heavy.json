@@ -1,0 +1,11 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": ["ROR", "RTR", "RRR"],
+  "key": {
+    "R": "cosmos:rocket_orbital",
+    "O": "minecraft:netherite_ingot",
+    "T": "cosmos:fuel_tank"
+  },
+  "result": { "id": "cosmos:rocket_heavy" }
+}

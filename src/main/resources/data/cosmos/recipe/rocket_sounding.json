@@ -1,0 +1,12 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [" N ", "IGI", "IFI"],
+  "key": {
+    "N": "minecraft:iron_ingot",
+    "I": "minecraft:iron_ingot",
+    "G": "minecraft:gunpowder",
+    "F": "minecraft:blast_furnace"
+  },
+  "result": { "id": "cosmos:rocket_sounding" }
+}

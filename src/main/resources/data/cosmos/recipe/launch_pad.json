@@ -1,0 +1,11 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "building",
+  "pattern": ["IRI", "IBI", "III"],
+  "key": {
+    "I": "minecraft:iron_ingot",
+    "R": "minecraft:redstone_block",
+    "B": "minecraft:blast_furnace"
+  },
+  "result": { "id": "cosmos:launch_pad" }
+}

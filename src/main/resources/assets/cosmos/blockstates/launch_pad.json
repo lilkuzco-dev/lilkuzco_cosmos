@@ -1,0 +1,6 @@
+{
+  "variants": {
+    "lit=false": { "model": "cosmos:block/launch_pad" },
+    "lit=true": { "model": "cosmos:block/launch_pad" }
+  }
+}

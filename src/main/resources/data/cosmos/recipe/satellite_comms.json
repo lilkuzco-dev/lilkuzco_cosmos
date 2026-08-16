@@ -1,0 +1,12 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": ["GRG", "IAI", "III"],
+  "key": {
+    "G": "minecraft:glass_pane",
+    "R": "minecraft:redstone_block",
+    "I": "minecraft:iron_ingot",
+    "A": "minecraft:amethyst_shard"
+  },
+  "result": { "id": "cosmos:satellite_comms" }
+}

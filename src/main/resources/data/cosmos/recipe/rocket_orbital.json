@@ -1,0 +1,11 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": ["RSR", "RTR", "RRR"],
+  "key": {
+    "R": "cosmos:rocket_sounding",
+    "S": "minecraft:iron_block",
+    "T": "cosmos:fuel_tank"
+  },
+  "result": { "id": "cosmos:rocket_orbital" }
+}

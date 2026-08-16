@@ -1,0 +1,5 @@
+{
+  "_comment": "Grade 2 — the campaign's diesel-tier. DELIBERATELY EMPTY: crude_empire v0.1.x has no refinery and no diesel, so there is nothing to put here yet. When its Phase 2 ships, adding one line to this file wires refined fuel into every launch pad in the world. No code changes in either mod, and crude_empire is never touched.",
+  "replace": false,
+  "values": []
+}

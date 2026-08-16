@@ -1,0 +1,5 @@
+{
+  "_comment": "Grade 3 — the high-Isp hook the campaign asks for. Empty by design; hydrolox figures already sit in Propellants.CRYOGENIC waiting for a fluid.",
+  "replace": false,
+  "values": []
+}

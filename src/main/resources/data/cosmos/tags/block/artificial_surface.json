@@ -1,0 +1,33 @@
+{
+  "_comment": "What a recon pass counts as construction. Datapack-driven so a server decides whether, say, farmland is a signature worth reporting.",
+  "replace": false,
+  "values": [
+    "#minecraft:planks",
+    "#minecraft:wooden_stairs",
+    "#minecraft:wooden_slabs",
+    "#minecraft:doors",
+    "#minecraft:fences",
+    "#minecraft:walls",
+    "#minecraft:stone_bricks",
+    "#minecraft:impermeable",
+    "minecraft:bricks",
+    "minecraft:smooth_stone",
+    "minecraft:stone_brick_stairs",
+    "minecraft:cobblestone_stairs",
+    "minecraft:iron_block",
+    "minecraft:gold_block",
+    "minecraft:copper_block",
+    "minecraft:crafting_table",
+    "minecraft:furnace",
+    "minecraft:chest",
+    "minecraft:barrel",
+    "minecraft:torch",
+    "minecraft:lantern",
+    "minecraft:farmland",
+    "minecraft:hay_block",
+    "cosmos:launch_pad",
+    "cosmos:pad_frame",
+    "cosmos:fuel_tank",
+    "cosmos:satellite_console"
+  ]
+}

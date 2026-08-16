@@ -1,0 +1,11 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "building",
+  "pattern": ["ICI", "IBI", "ICI"],
+  "key": {
+    "I": "minecraft:iron_ingot",
+    "C": "minecraft:copper_ingot",
+    "B": "minecraft:bucket"
+  },
+  "result": { "id": "cosmos:fuel_tank" }
+}
