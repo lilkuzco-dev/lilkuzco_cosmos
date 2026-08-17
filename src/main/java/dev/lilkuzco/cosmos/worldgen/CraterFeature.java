@@ -28,6 +28,15 @@ public class CraterFeature extends Feature<CraterConfiguration> {
 		super(CraterConfiguration.CODEC);
 	}
 
+	/**
+	 * Blocks a feature may write beyond its own chunk. Minecraft allows one chunk in each
+	 * direction, so a write that starts at a chunk edge must not travel more than 15 blocks.
+	 */
+	public static final int MAX_WRITE_REACH = 15;
+
+	/** The largest crater radius whose 1.35x rim reach still fits inside {@link #MAX_WRITE_REACH}. */
+	public static final int MAX_LEGAL_RADIUS = (int) (MAX_WRITE_REACH / 1.35);
+
 	@Override
 	public boolean place(FeaturePlaceContext<CraterConfiguration> context) {
 		WorldGenLevel level = context.level();
@@ -40,6 +49,19 @@ public class CraterFeature extends Feature<CraterConfiguration> {
 						? random.nextInt(config.maxRadius() - config.minRadius() + 1) : 0);
 		if (radius < 2) return false;
 
+		// A FEATURE MAY ONLY WRITE ONE CHUNK OUT FROM ITS OWN.
+		//
+		// Exceeding that is not a cosmetic problem: Minecraft logs "Detected setBlock in a far
+		// chunk" and the write lands in a chunk that may already have been generated, which makes
+		// the result depend on visit order rather than on the seed. A single polar region produced
+		// 441 of those warnings before this clamp existed.
+		//
+		// The clamp lives here rather than only in the datapack so that no configuration, present
+		// or future, can reintroduce the bug. A crater larger than this needs to be a structure,
+		// which has a bounding box and is allowed to span chunks; that is stated work, not a
+		// silent limitation.
+		radius = Math.min(radius, MAX_LEGAL_RADIUS);
+
 		double depth = Math.max(1.0, radius * config.depthRatio());
 		double rim = Math.max(1.0, depth * config.rimRatio());
 		int surfaceY = level.getHeight(Heightmap.Types.OCEAN_FLOOR_WG, origin.getX(), origin.getZ());
@@ -50,7 +72,7 @@ public class CraterFeature extends Feature<CraterConfiguration> {
 		double cos = Math.cos(angle);
 		double sin = Math.sin(angle);
 
-		int reach = (int) Math.ceil(radius * 1.35);
+		int reach = Math.min(MAX_WRITE_REACH, (int) Math.ceil(radius * 1.35));
 		BlockState regolith = CosmosBlocks.REGOLITH.defaultBlockState();
 		BlockState basalt = CosmosBlocks.MARE_BASALT.defaultBlockState();
 		BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();

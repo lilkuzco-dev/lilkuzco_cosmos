@@ -16,6 +16,11 @@ public final class CosmosBlockEntities {
 			BuiltInRegistries.BLOCK_ENTITY_TYPE, Cosmos.id("launch_pad"),
 			new BlockEntityType<>(LaunchPadBlockEntity::new, Set.of(CosmosBlocks.LAUNCH_PAD)));
 
+	public static final BlockEntityType<dev.lilkuzco.cosmos.isru.IsruBlockEntity> ISRU =
+			Registry.register(BuiltInRegistries.BLOCK_ENTITY_TYPE, Cosmos.id("isru"),
+					new BlockEntityType<>(dev.lilkuzco.cosmos.isru.IsruBlockEntity::new,
+							Set.of(CosmosBlocks.ELECTROLYSER, CosmosBlocks.REGOLITH_KILN)));
+
 	public static final BlockEntityType<SatelliteConsoleBlockEntity> SATELLITE_CONSOLE =
 			Registry.register(BuiltInRegistries.BLOCK_ENTITY_TYPE, Cosmos.id("satellite_console"),
 					new BlockEntityType<>(SatelliteConsoleBlockEntity::new,
@@ -32,6 +37,10 @@ public final class CosmosBlockEntities {
 	public static void register() {
 		FluidStorage.SIDED.registerForBlockEntity(
 				(pad, direction) -> pad.tank(), LAUNCH_PAD);
+		// The propellant tap. A launch pad or a pipe pulls hydrolox straight out of the base's
+		// production, which is what makes a lunar refuelling stop a thing you can build.
+		FluidStorage.SIDED.registerForBlockEntity(
+				(plant, direction) -> plant.tap(), ISRU);
 		FluidStorage.SIDED.registerForBlocks((level, pos, state, entity, direction) -> {
 			LaunchPadBlockEntity pad = FuelTankBlock.controllerFor(level, pos);
 			return pad == null ? null : pad.tank();

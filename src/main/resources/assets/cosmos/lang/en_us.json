@@ -99,5 +99,15 @@
   "cosmos.transit.no_moon": "This world has no Moon dimension. It predates cosmos.",
   "cosmos.launch.crew_short": "Orbit reached at %s m/s — but the Moon needs %s. You are %s m/s short. Aborting to the pad.",
   "cosmos.launch.crew_suborbital": "Suborbital at %s m/s against a %s m/s budget. Aborting to the pad.",
-  "cosmos.moon.no_sleep": "There is no night here to sleep through."
+  "cosmos.moon.no_sleep": "There is no night here to sleep through.",
+  "block.cosmos.electrolyser": "Ice Electrolyser",
+  "block.cosmos.regolith_kiln": "Regolith Kiln",
+  "block.cosmos.sintered_regolith": "Sintered Regolith",
+  "fluid.cosmos.hydrolox": "Hydrolox",
+  "cosmos.isru.wrong_world": "This only works on the Moon.",
+  "cosmos.isru.bad_site": "Dark — an electrolyser needs polar ice under it.",
+  "cosmos.isru.status": "Base: %s days of air · %s kg hydrolox · %s%% of a lander's load",
+  "cosmos.isru.collected": "Collected %s sintered regolith.",
+  "cosmos.isru.nothing_yet": "Nothing baked yet.",
+  "cosmos.propellant.hydrolox": "Hydrolox"
 }

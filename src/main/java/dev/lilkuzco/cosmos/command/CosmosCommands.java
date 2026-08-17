@@ -72,6 +72,14 @@ public final class CosmosCommands {
 
                 .then(Commands.literal("padtest").executes(CosmosCommands::padTest))
 
+                .then(Commands.literal("isrutest").executes(CosmosCommands::isruTest))
+
+                .then(Commands.literal("economy")
+                        .executes(CosmosCommands::economy)
+                        .then(Commands.argument("advance_ticks",
+                                        IntegerArgumentType.integer(1, 200_000))
+                                .executes(CosmosCommands::economy)))
+
                 .then(Commands.literal("moon").executes(CosmosCommands::moon))
 
                 .then(Commands.literal("moonland")
@@ -328,6 +336,150 @@ public final class CosmosCommands {
             line(source, "propellant %s (Isp %.0f/%.0f s): %s", grade.id(),
                     grade.ispSeaLevel(), grade.ispVacuum(),
                     fluids.isEmpty() ? "DARK - no fluid tagged" : String.join(", ", fluids));
+        }
+    }
+
+    /**
+     * Report the lunar economy, and optionally fast-forward it.
+     *
+     * <p>The advance argument is how a base's arc gets verified without waiting real days for it.
+     * It steps the same pure model the server steps, so what it shows is what would have happened.
+     */
+    private static int economy(CommandContext<CommandSourceStack> ctx) {
+        CommandSourceStack source = ctx.getSource();
+        var server = source.getServer();
+        if (server.getLevel(dev.lilkuzco.cosmos.moon.MoonDimension.MOON) == null) {
+            source.sendFailure(Component.literal("no cosmos:moon dimension in this world"));
+            return 0;
+        }
+        var model = dev.lilkuzco.cosmos.economy.LunarEconomyManager.model(server);
+
+        int advance = 0;
+        try {
+            advance = IntegerArgumentType.getInteger(ctx, "advance_ticks");
+        } catch (IllegalArgumentException noArgument) {
+            // Reporting only.
+        }
+        if (advance > 0) {
+            // Set the duty from the world FIRST. Advancing straight away ran the model at the
+            // construction default of full duty, so a base with no plants at all reported 40,000
+            // ticks of production it could not possibly have had.
+            syncDuty(server, model);
+            model.advance(advance);
+            dev.lilkuzco.cosmos.economy.LunarEconomyState.get(server).put(model);
+            line(source, "advanced the model %d economic ticks", advance);
+        }
+
+        var report = model.report();
+        var ledger = model.ledger();
+        line(source, "tick %d, %s", report.tick(),
+                report.exhausted() ? "ICE EXHAUSTED" : "producing");
+        line(source, "plants: %d electrolyser(s), %d kiln(s) -> duty melt %.2f, bake %.2f",
+                dev.lilkuzco.cosmos.isru.IsruRegistry.count(
+                        dev.lilkuzco.cosmos.isru.IsruRegistry.Kind.ELECTROLYSER),
+                dev.lilkuzco.cosmos.isru.IsruRegistry.count(
+                        dev.lilkuzco.cosmos.isru.IsruRegistry.Kind.KILN),
+                model.duty(dev.lilkuzco.cosmos.economy.LunarEconomy.Process.MELT),
+                model.duty(dev.lilkuzco.cosmos.economy.LunarEconomy.Process.BAKE));
+        for (var resource : dev.lilkuzco.cosmos.economy.LunarEconomy.Resource.values()) {
+            line(source, "  %-9s %10.2f kg", resource, model.stock(resource));
+        }
+        line(source, "deposits: %.0f kg per live deposit, %.0f live",
+                report.icePerDepositKg(), report.depositsRemaining());
+        line(source, "air: %.2f days (%s) · allocation %.3f to life support",
+                report.oxygenDays(), report.selfSufficient() ? "self-sufficient" : "NOT sustaining",
+                report.lifeSupportShare());
+        line(source, "home: %.0f kg hydrolox, %.1f%% of a lander's load",
+                report.hydroloxKg(), report.returnFraction() * 100.0);
+        line(source, "ledger: mined %.2f, processed %.2f, consumed %.2f, lost %.2f, stored %.2f",
+                ledger.minedKg(), ledger.processedKg(), ledger.consumedKg(), ledger.lostKg(),
+                ledger.storedKg());
+        line(source, "conservation: residual %.3e kg, tolerance %.3e -> %s",
+                ledger.residual(), ledger.tolerance(),
+                ledger.balanced() ? "BALANCED" : "BROKEN");
+        return 1;
+    }
+
+    /**
+     * Build ISRU plants on the Moon and prove the siting rule, then run the base.
+     *
+     * <p>The claim under test is not "the model produces numbers" - the headless battery already
+     * settles that - but that the WORLD drives the model: that an electrolyser off the ice sits
+     * dark, that one on the ice runs, and that building plants is what turns production on.
+     */
+    private static int isruTest(CommandContext<CommandSourceStack> ctx) {
+        CommandSourceStack source = ctx.getSource();
+        var server = source.getServer();
+        net.minecraft.server.level.ServerLevel moon =
+                server.getLevel(dev.lilkuzco.cosmos.moon.MoonDimension.MOON);
+        if (moon == null) {
+            source.sendFailure(Component.literal("no cosmos:moon dimension in this world"));
+            return 0;
+        }
+        dev.lilkuzco.cosmos.isru.IsruRegistry.clear();
+
+        // A kiln works anywhere; put it at the origin.
+        BlockPos kiln = surfaceAt(moon, 0, 0);
+        moon.setBlock(kiln, dev.lilkuzco.cosmos.CosmosBlocks.REGOLITH_KILN.defaultBlockState(), 3);
+        line(source, "kiln at (%d, %d, %d), biome %s", kiln.getX(), kiln.getY(), kiln.getZ(),
+                moon.getBiome(kiln).getRegisteredName());
+
+        // An electrolyser here should be DARK - the origin is highlands, and there is no ice.
+        BlockPos dark = surfaceAt(moon, 8, 0);
+        moon.setBlock(dark, dev.lilkuzco.cosmos.CosmosBlocks.ELECTROLYSER.defaultBlockState(), 3);
+        boolean darkSited = moon.getBlockEntity(dark)
+                instanceof dev.lilkuzco.cosmos.isru.IsruBlockEntity plant && plant.sited(moon);
+        line(source, "electrolyser off the ice at (%d, %d): sited=%s (must be false)",
+                dark.getX(), dark.getZ(), darkSited);
+
+        // Now find polar ice and put four electrolysers on it.
+        var polar = moon.findClosestBiome3d(
+                holder -> holder.is(dev.lilkuzco.cosmos.moon.MoonDimension.POLAR),
+                new BlockPos(0, 80, 0), 6400, 32, 64);
+        if (polar == null) {
+            source.sendFailure(Component.literal(
+                    "no lunar_polar biome within 6400 blocks - worldgen problem"));
+            return 0;
+        }
+        BlockPos found = polar.getFirst();
+        int built = 0;
+        for (int i = 0; i < dev.lilkuzco.cosmos.economy.LunarEconomyManager
+                .MACHINES_FOR_FULL_DUTY; i++) {
+            BlockPos at = surfaceAt(moon, found.getX() + i * 2, found.getZ());
+            moon.setBlock(at, dev.lilkuzco.cosmos.CosmosBlocks.ELECTROLYSER.defaultBlockState(), 3);
+            if (moon.getBlockEntity(at)
+                    instanceof dev.lilkuzco.cosmos.isru.IsruBlockEntity plant
+                    && plant.sited(moon)) {
+                built++;
+            }
+        }
+        line(source, "polar site at (%d, %d), biome %s: %d of %d electrolysers sited",
+                found.getX(), found.getZ(), moon.getBiome(found).getRegisteredName(), built,
+                dev.lilkuzco.cosmos.economy.LunarEconomyManager.MACHINES_FOR_FULL_DUTY);
+        return built > 0 ? 1 : 0;
+    }
+
+    /** The first solid surface in a column, generating the chunk if it is not there yet. */
+    private static BlockPos surfaceAt(net.minecraft.server.level.ServerLevel level, int x, int z) {
+        level.getChunk(x >> 4, z >> 4,
+                net.minecraft.world.level.chunk.status.ChunkStatus.FULL, true);
+        return level.getHeightmapPos(
+                net.minecraft.world.level.levelgen.Heightmap.Types.WORLD_SURFACE,
+                new BlockPos(x, 0, z));
+    }
+
+    /** Push the world's machine counts into the model, as the manager does every economic tick. */
+    private static void syncDuty(net.minecraft.server.MinecraftServer server,
+                                 dev.lilkuzco.cosmos.economy.LunarEconomy model) {
+        int electrolysers = dev.lilkuzco.cosmos.isru.IsruRegistry.count(
+                dev.lilkuzco.cosmos.isru.IsruRegistry.Kind.ELECTROLYSER);
+        int kilns = dev.lilkuzco.cosmos.isru.IsruRegistry.count(
+                dev.lilkuzco.cosmos.isru.IsruRegistry.Kind.KILN);
+        double full = dev.lilkuzco.cosmos.economy.LunarEconomyManager.MACHINES_FOR_FULL_DUTY;
+        for (var process : dev.lilkuzco.cosmos.economy.LunarEconomy.Process.values()) {
+            int machines = process == dev.lilkuzco.cosmos.economy.LunarEconomy.Process.BAKE
+                    ? kilns : electrolysers;
+            model.setDuty(process, Math.min(1.0, machines / full));
         }
     }
 

@@ -127,14 +127,23 @@ read off kinetics' own solution.
 Stand on the apron with a lander in the payload slot when the count reaches zero and you are crew.
 Walk off it and you are not.
 
-### What Phase B does not have
+### The lunar economy
 
-**No way home.** There is no ascent vehicle and no return path; a lunar base is somewhere you go
-and stay. That is a scope limit stated rather than hidden — a return trip needs propellant made on
-the Moon, and lunar industry is exactly what `ECONOMY.md` proposes rather than assumes.
+Built on **warfront's economic template**, read as a reference and not modified. Everything
+structural carries across — a pure model with no Minecraft dependency, a seeded SplitMix64 with
+byte-identical replay, finite nodes, shocks that destroy but never create, a Base64 snapshot behind
+a magic number, and a conservation audit that throws every tick. Two things differ: the conserved
+quantity is **mass** rather than money, because a base has no citizens to hold currency; and
+**nothing regenerates**, because there is no water cycle to bring it back.
 
-**No lunar economy.** Three lunar blocks generate; none of them is consumed by any recipe.
-`lunar_ice` is scenery that happens to be true. See `ECONOMY.md`.
+The chemistry is the design. Water is 11.19% hydrogen by mass and hydrolox burns fuel-rich at 6:1,
+so **making propellant necessarily makes 24% more oxygen than the engine can use**. You cannot
+solve getting home without also solving breathing.
+
+`cosmos:hydrolox` lights the **cryogenic rung** — the grade that has carried Isp figures and no
+fluid since Phase A. The best propellant in the game is the one you have to go and make.
+
+See `ECONOMY.md`.
 
 ---
 
@@ -146,6 +155,7 @@ tools/verify.sh                         # Phase A and Phase B chains, headless, 
 tools/devserver.sh log.txt "cosmos selftest" "cosmos moon"
 tools/devserver.sh log.txt "forceload add 0 0" "cosmos moonland 300" "cosmos moonland 60"
 tools/devserver.sh log.txt "cosmos padtest"     # build a pad, fuel it, launch it
+tools/devserver.sh log.txt "cosmos isrutest" "cosmos economy 20000"
 ```
 
 `tools/verify.sh` flies propellant → launch → insertion → passes → deorbit → reentry → recovery

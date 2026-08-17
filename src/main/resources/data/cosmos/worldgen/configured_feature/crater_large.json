@@ -1,5 +1,11 @@
 {
-  "_comment": "The rare basins. Placed far more sparsely, so most of the surface is small pits and a large crater is a landmark.",
+  "_comment": "The rare basins. Placed far more sparsely, so most of the surface is small pits and a large crater is a landmark. RADIUS IS BOUNDED BY THE ONE-CHUNK WRITE LIMIT: a feature may only write into its own chunk and the ring around it, and this one's rim reaches 1.35x its radius. Craters bigger than this need to be a structure, which is allowed to span chunks.",
   "type": "cosmos:crater",
-  "config": { "min_radius": 16, "max_radius": 34, "depth_ratio": 0.18, "rim_ratio": 0.45, "expose_floor": true }
+  "config": {
+    "min_radius": 8,
+    "max_radius": 11,
+    "depth_ratio": 0.18,
+    "rim_ratio": 0.45,
+    "expose_floor": true
+  }
 }

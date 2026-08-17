@@ -1,5 +1,7 @@
 {
-  "_comment": "Grade 3 — the high-Isp hook the campaign asks for. Empty by design; hydrolox figures already sit in Propellants.CRYOGENIC waiting for a fluid.",
+  "_comment": "Grade 3 - hydrolox. LIT BY THE MOON. This is the only rung cosmos fills itself, and it can only be filled there: cosmos:hydrolox is made by electrolysing lunar polar ice, which exists nowhere else. The Isp figures have sat here since Phase A waiting for a fluid; the fluid turned out to be the reason to go.",
   "replace": false,
-  "values": []
+  "values": [
+    "cosmos:hydrolox"
+  ]
 }

@@ -21,7 +21,7 @@ import net.minecraft.world.level.material.MapColor;
 
 import java.util.function.Function;
 
-/** Cosmos' four blocks. No worldgen, no ores - everything here is built, not found. */
+/** Cosmos' blocks: a launch complex, a lunar surface, and the plants that turn one into the other. */
 public final class CosmosBlocks {
 
     /** The controller. Everything about a launch is decided here. */
@@ -108,6 +108,46 @@ public final class CosmosBlocks {
                     .lightLevel(state -> 5)
                     .sound(SoundType.METAL));
 
+    // ---- in-situ resource utilisation ------------------------------------
+
+    /**
+     * Melts polar ice, splits the water, and mixes propellant. Only runs where the ice is.
+     */
+    public static final Block ELECTROLYSER = register(
+            "electrolyser",
+            properties -> new dev.lilkuzco.cosmos.isru.IsruBlock(properties,
+                    dev.lilkuzco.cosmos.isru.IsruRegistry.Kind.ELECTROLYSER),
+            BlockBehaviour.Properties.of()
+                    .mapColor(MapColor.COLOR_LIGHT_BLUE)
+                    .requiresCorrectToolForDrops()
+                    .strength(3.5F, 6.0F)
+                    .lightLevel(state -> state.getValue(
+                            dev.lilkuzco.cosmos.isru.IsruBlock.LIT) ? 10 : 0)
+                    .sound(SoundType.METAL));
+
+    /** Bakes the ground for air and building material. Works anywhere, and works badly. */
+    public static final Block REGOLITH_KILN = register(
+            "regolith_kiln",
+            properties -> new dev.lilkuzco.cosmos.isru.IsruBlock(properties,
+                    dev.lilkuzco.cosmos.isru.IsruRegistry.Kind.KILN),
+            BlockBehaviour.Properties.of()
+                    .mapColor(MapColor.COLOR_ORANGE)
+                    .requiresCorrectToolForDrops()
+                    .strength(3.5F, 6.0F)
+                    .lightLevel(state -> state.getValue(
+                            dev.lilkuzco.cosmos.isru.IsruBlock.LIT) ? 13 : 0)
+                    .sound(SoundType.METAL));
+
+    /** What a base is built out of: the ground it stands on, baked until it holds together. */
+    public static final Block SINTERED_REGOLITH = register(
+            "sintered_regolith", Block::new,
+            BlockBehaviour.Properties.of()
+                    .mapColor(MapColor.COLOR_LIGHT_GRAY)
+                    .instrument(NoteBlockInstrument.BASEDRUM)
+                    .requiresCorrectToolForDrops()
+                    .strength(2.0F, 8.0F)
+                    .sound(SoundType.STONE));
+
     public static void register() {
         CreativeModeTabEvents.modifyOutputEvent(CreativeModeTabs.FUNCTIONAL_BLOCKS).register(out -> {
             out.insertAfter(Items.BEACON, LAUNCH_PAD);
@@ -115,11 +155,14 @@ public final class CosmosBlocks {
             out.insertAfter(PAD_FRAME.asItem(), FUEL_TANK);
             out.insertAfter(FUEL_TANK.asItem(), SATELLITE_CONSOLE);
             out.insertAfter(SATELLITE_CONSOLE.asItem(), OXYGEN_STATION);
+            out.insertAfter(OXYGEN_STATION.asItem(), ELECTROLYSER);
+            out.insertAfter(ELECTROLYSER.asItem(), REGOLITH_KILN);
         });
         CreativeModeTabEvents.modifyOutputEvent(CreativeModeTabs.NATURAL_BLOCKS).register(out -> {
             out.insertAfter(Items.GRAVEL, REGOLITH);
             out.insertAfter(REGOLITH.asItem(), MARE_BASALT);
             out.insertAfter(MARE_BASALT.asItem(), LUNAR_ICE);
+            out.insertAfter(LUNAR_ICE.asItem(), SINTERED_REGOLITH);
         });
     }
 

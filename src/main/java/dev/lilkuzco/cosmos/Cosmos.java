@@ -28,6 +28,7 @@ public final class Cosmos implements ModInitializer {
 
     @Override
     public void onInitialize() {
+        CosmosFluids.register();
         CosmosBlocks.register();
         CosmosItems.register();
         CosmosBlockEntities.register();
@@ -40,10 +41,12 @@ public final class Cosmos implements ModInitializer {
         dev.lilkuzco.cosmos.worldgen.CosmosWorldgen.register();
         dev.lilkuzco.cosmos.moon.MoonDimension.register();
         dev.lilkuzco.cosmos.moon.LunarTransit.register();
+        dev.lilkuzco.cosmos.isru.IsruRegistry.register();
+        dev.lilkuzco.cosmos.economy.LunarEconomyManager.register();
         dev.lilkuzco.cosmos.life.LifeSupport.register();
 
         LOG.info("cosmos {} ready: {} rocket tiers, {} propellant grades",
-                "0.1.0-C",
+                "0.1.0-D",
                 dev.lilkuzco.cosmos.rocket.RocketTier.LADDER.size(),
                 dev.lilkuzco.cosmos.propellant.Propellants.LADDER.size());
     }

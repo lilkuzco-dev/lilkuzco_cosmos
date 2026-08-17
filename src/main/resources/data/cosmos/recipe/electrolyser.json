@@ -1,0 +1,18 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "building",
+  "pattern": [
+    "ICI",
+    "TGT",
+    "III"
+  ],
+  "key": {
+    "I": "minecraft:iron_ingot",
+    "C": "minecraft:copper_block",
+    "T": "cosmos:oxygen_tank",
+    "G": "minecraft:glass"
+  },
+  "result": {
+    "id": "cosmos:electrolyser"
+  }
+}

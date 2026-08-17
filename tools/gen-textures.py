@@ -238,6 +238,75 @@ def oxygen_tank_item():
     p[1][7] = [110, 118, 128, 255]
     return p
 
+def electrolyser():
+    """A cryo plant: pale metal, a blue cell, and frost at the base."""
+    p = blank()
+    for y in range(16):
+        for x in range(16):
+            p[y][x] = [176, 184, 196, 255]
+    for y in range(2, 12):
+        for x in range(3, 13):
+            p[y][x] = [140, 150, 164, 255]
+    # The electrolysis cell, glowing cold.
+    for y in range(4, 10):
+        for x in range(5, 11):
+            p[y][x] = [96, 168, 220, 255]
+    for y in range(5, 9):
+        for x in range(6, 10):
+            p[y][x] = [150, 210, 244, 255]
+    # Bubbles rising: hydrogen on one side, oxygen on the other.
+    p[5][6] = [232, 244, 252, 255]
+    p[7][9] = [232, 244, 252, 255]
+    # Frost line.
+    for x in range(2, 14):
+        p[13][x] = [214, 230, 240, 255]
+    return p
+
+
+def regolith_kiln():
+    """A bake oven: grey shell, a hot orange mouth."""
+    p = blank()
+    for y in range(16):
+        for x in range(16):
+            p[y][x] = [150, 146, 140, 255]
+    for y in range(2, 14):
+        for x in range(2, 14):
+            p[y][x] = [124, 120, 114, 255]
+    for y in range(6, 12):
+        for x in range(4, 12):
+            p[y][x] = [196, 104, 42, 255]
+    for y in range(7, 11):
+        for x in range(5, 11):
+            p[y][x] = [236, 160, 62, 255]
+    for x in range(6, 10):
+        p[9][x] = [250, 214, 130, 255]
+    # Flue.
+    for y in range(2, 5):
+        p[y][12] = [96, 92, 88, 255]
+    return p
+
+
+def sintered_regolith():
+    """Baked dust, holding together: pale blocks with dark mortar."""
+    p = blank()
+    for y in range(16):
+        for x in range(16):
+            p[y][x] = [186, 182, 174, 255]
+    for x in range(16):
+        p[5][x] = [148, 144, 138, 255]
+        p[11][x] = [148, 144, 138, 255]
+    for y in range(0, 5):
+        p[y][7] = [148, 144, 138, 255]
+    for y in range(6, 11):
+        p[y][12] = [148, 144, 138, 255]
+    for y in range(12, 16):
+        p[y][3] = [148, 144, 138, 255]
+    # A little grain so it does not read as flat.
+    for (y, x) in ((2, 3), (3, 11), (8, 5), (9, 14), (13, 8), (14, 1)):
+        p[y][x] = [204, 200, 192, 255]
+    return p
+
+
 def lander_item():
     """A descent stage: a squat body on four splayed legs, with a nozzle underneath."""
     p = blank()
@@ -305,6 +374,9 @@ written.append(png(os.path.join(OUT, "block", "oxygen_station.png"), oxygen_stat
 written.append(png(os.path.join(OUT, "item", "oxygen_tank.png"), oxygen_tank_item()))
 written.append(png(os.path.join(OUT, "item", "pressure_suit.png"), suit_item()))
 written.append(png(os.path.join(OUT, "item", "lunar_lander.png"), lander_item()))
+written.append(png(os.path.join(OUT, "block", "electrolyser.png"), electrolyser()))
+written.append(png(os.path.join(OUT, "block", "regolith_kiln.png"), regolith_kiln()))
+written.append(png(os.path.join(OUT, "block", "sintered_regolith.png"), sintered_regolith()))
 
 for w in written:
     print("wrote", os.path.relpath(w, os.path.join(os.path.dirname(__file__), "..")))

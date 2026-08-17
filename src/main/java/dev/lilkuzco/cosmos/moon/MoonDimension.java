@@ -35,6 +35,16 @@ public final class MoonDimension {
 	public static final ResourceKey<Level> MOON =
 			ResourceKey.create(Registries.DIMENSION, Cosmos.id("moon"));
 
+	/**
+	 * The polar biome, where the ice is.
+	 *
+	 * <p>Named here rather than in the ISRU code because siting is a fact about the Moon, not
+	 * about a machine. Permanently shadowed polar crater floors are the only place lunar water
+	 * survives, so they are the only place an electrolyser has anything to melt.
+	 */
+	public static final ResourceKey<net.minecraft.world.level.biome.Biome> POLAR =
+			ResourceKey.create(Registries.BIOME, Cosmos.id("lunar_polar"));
+
 	/** Lunar surface gravity as a fraction of g0 — the real 1.62 m/s^2 over 9.80665. */
 	public static final double GRAVITY_SCALAR = 0.16519;
 

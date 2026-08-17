@@ -1,0 +1,10 @@
+{
+  "variants": {
+    "lit=false": {
+      "model": "cosmos:block/regolith_kiln"
+    },
+    "lit=true": {
+      "model": "cosmos:block/regolith_kiln"
+    }
+  }
+}

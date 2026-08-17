@@ -26,9 +26,12 @@ rm -rf "$OUT" && mkdir -p "$OUT"
   src/main/java/dev/lilkuzco/cosmos/rocket/RocketTier.java \
   src/main/java/dev/lilkuzco/cosmos/rocket/LaunchPipeline.java \
   src/main/java/dev/lilkuzco/cosmos/moon/LunarLander.java \
+  src/main/java/dev/lilkuzco/cosmos/economy/LunarEconomy.java \
   verify/java/dev/lilkuzco/cosmos/propellant/Propellants.java \
   verify/java/dev/lilkuzco/cosmos/verify/PhaseAVerification.java \
-  verify/java/dev/lilkuzco/cosmos/verify/PhaseBVerification.java
+  verify/java/dev/lilkuzco/cosmos/verify/PhaseBVerification.java \
+  verify/java/dev/lilkuzco/cosmos/verify/EconomyVerification.java
 
 "$JAVA_HOME/bin/java" -cp "$OUT:$KIN_CORE" dev.lilkuzco.cosmos.verify.PhaseAVerification
 "$JAVA_HOME/bin/java" -cp "$OUT:$KIN_CORE" dev.lilkuzco.cosmos.verify.PhaseBVerification
+"$JAVA_HOME/bin/java" -cp "$OUT:$KIN_CORE" dev.lilkuzco.cosmos.verify.EconomyVerification

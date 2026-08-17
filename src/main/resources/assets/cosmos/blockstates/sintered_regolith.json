@@ -1,0 +1,7 @@
+{
+  "variants": {
+    "": {
+      "model": "cosmos:block/sintered_regolith"
+    }
+  }
+}

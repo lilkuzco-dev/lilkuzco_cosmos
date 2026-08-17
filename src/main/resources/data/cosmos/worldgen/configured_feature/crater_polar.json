@@ -1,4 +1,11 @@
 {
   "type": "cosmos:crater",
-  "config": { "min_radius": 6, "max_radius": 16, "depth_ratio": 0.26, "rim_ratio": 0.4, "expose_floor": false }
+  "config": {
+    "min_radius": 6,
+    "max_radius": 11,
+    "depth_ratio": 0.26,
+    "rim_ratio": 0.4,
+    "expose_floor": false
+  },
+  "_comment": "RADIUS IS BOUNDED BY THE ONE-CHUNK WRITE LIMIT: a feature may only write into its own chunk and the ring around it, and this one's rim reaches 1.35x its radius. Craters bigger than this need to be a structure, which is allowed to span chunks."
 }
