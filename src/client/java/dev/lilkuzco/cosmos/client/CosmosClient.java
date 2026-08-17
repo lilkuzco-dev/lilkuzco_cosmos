@@ -32,6 +32,7 @@ public final class CosmosClient implements ClientModInitializer {
 		// on the first live ignition. EntityRendererCoverageTest now guards this.
 		EntityRendererRegistry.register(CosmosEntities.ROCKET, InvisibleEntityRenderer::new);
 		EntityRendererRegistry.register(CosmosEntities.CAPSULE, InvisibleEntityRenderer::new);
+		EntityRendererRegistry.register(CosmosEntities.TRANSIT, InvisibleEntityRenderer::new);
 
 		ClientPlayNetworking.registerGlobalReceiver(CosmosNet.PlanetariumS2C.TYPE,
 				(payload, context) -> context.client().execute(() -> {

@@ -139,6 +139,11 @@ public final class LifeSupport {
             if (player.isCreative() || player.isSpectator()) continue;
             ServerLevel level = player.level();
             if (isBreathable(level.dimension())) continue;
+            // Inside a spacecraft. A vehicle that carries you to the Moon has life support in it;
+            // charging a suit for the whole four-minute coast would mean arriving with one minute
+            // of air and no way to spend it, which is a budget problem invented by bookkeeping
+            // rather than by the mission.
+            if (inPressurisedVehicle(player)) continue;
 
             ItemStack suit = wornSuit(player);
 
@@ -164,6 +169,14 @@ public final class LifeSupport {
             warn(player, 0);
             if (player.tickCount % 20 == 0) suffocate(player, level);
         }
+    }
+
+    /** Whether the player is riding something of ours, and therefore breathing its air. */
+    public static boolean inPressurisedVehicle(ServerPlayer player) {
+        var vehicle = player.getVehicle();
+        return vehicle instanceof dev.lilkuzco.cosmos.moon.TransitEntity
+                || vehicle instanceof dev.lilkuzco.cosmos.rocket.RocketEntity
+                || vehicle instanceof dev.lilkuzco.cosmos.recovery.CapsuleEntity;
     }
 
     private static boolean nearStation(ServerLevel level, BlockPos around) {

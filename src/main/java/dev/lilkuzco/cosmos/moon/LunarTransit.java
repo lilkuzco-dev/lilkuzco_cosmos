@@ -67,6 +67,17 @@ public final class LunarTransit {
 	/** Altitude above the lunar surface at which the lander separates and the descent begins. */
 	public static final double ARRIVAL_ALTITUDE = 30_000.0;
 
+	/**
+	 * Where the coast starts, in metres above the lunar surface.
+	 *
+	 * <p>A stated VIEW mapping, in the spirit of kinetics' scale audit. The true transfer runs
+	 * from a 5 km parking orbit out to 20,665 km, and no world is 20,665 km tall. The crew descend
+	 * from here to the separation altitude over the coast so the journey has visible motion; the
+	 * numbers on the action bar are the real ones, off the real ellipse. The map is a fiction, the
+	 * territory is not.
+	 */
+	public static final double COAST_START_ALTITUDE = 120_000.0;
+
 	/** Where a mission is in the journey. */
 	public enum Stage { COAST, DESCENT }
 
@@ -84,6 +95,7 @@ public final class LunarTransit {
 		final double startedAt;
 		final double coastSeconds;
 		final BlockPos origin;
+		int vehicle = -1;
 		String landerBodyId;
 		Stage stage = Stage.COAST;
 		double lastSpeed;
@@ -127,9 +139,31 @@ public final class LunarTransit {
 		KineticsService kinetics = KineticsMod.service();
 		if (kinetics == null) return;
 
+		ServerLevel moon = crew.level().getServer().getLevel(MoonDimension.MOON);
+		if (moon == null) {
+			crew.sendSystemMessage(Component.translatable("cosmos.transit.no_moon"));
+			return;
+		}
+
+		// TAKE CUSTODY OF THE CREW NOW. The launch vehicle is a view of a kinetics body and
+		// kinetics retires that body at ORBIT - the entity discards itself, correctly, and the
+		// passenger falls out of the sky. Injection is where the launch vehicle's job ends and
+		// the transfer vehicle's begins.
+		double coastStartY = kinetics.constants().d("world.sea_level_y") + COAST_START_ALTITUDE;
+		TransitEntity vehicle = TransitEntity.board(moon, origin.getX() + 0.5, coastStartY,
+				origin.getZ() + 0.5, crew);
+		if (vehicle == null) {
+			crew.sendSystemMessage(Component.translatable("cosmos.transit.no_moon"));
+			Cosmos.LOG.error("could not board {} onto a transfer vehicle",
+					crew.getGameProfile().name());
+			return;
+		}
+
 		double coast = kinetics.orbits().mechanics().lunarTransferTime() / TIME_COMPRESSION;
-		MISSIONS.put(crew.getUUID(), new Mission(crew.getUUID(), propellant,
-				kinetics.worldTimeSeconds(), coast, origin.immutable()));
+		Mission mission = new Mission(crew.getUUID(), propellant,
+				kinetics.worldTimeSeconds(), coast, origin.immutable());
+		mission.vehicle = vehicle.getId();
+		MISSIONS.put(crew.getUUID(), mission);
 
 		crew.sendSystemMessage(Component.translatable("cosmos.transit.begin",
 				String.format("%.0f", kinetics.orbits().mechanics().lunarTransferTime() / 3600.0),
@@ -169,6 +203,15 @@ public final class LunarTransit {
 	                                 ServerPlayer crew, Mission mission) {
 		double elapsed = kinetics.worldTimeSeconds() - mission.startedAt();
 		double fraction = Math.min(1.0, elapsed / Math.max(1e-6, mission.coastSeconds()));
+
+		// Fly the transfer vehicle down the view mapping. It owns no motion; this is its motion.
+		ServerLevel moon = server.getLevel(MoonDimension.MOON);
+		if (moon != null && moon.getEntity(mission.vehicle) instanceof TransitEntity vehicle) {
+			double y = kinetics.constants().d("world.sea_level_y")
+					+ COAST_START_ALTITUDE
+					- (COAST_START_ALTITUDE - ARRIVAL_ALTITUDE) * fraction;
+			vehicle.setPos(vehicle.getX(), y, vehicle.getZ());
+		}
 
 		if (crew.tickCount % 20 == 0) {
 			var m = kinetics.orbits().mechanics();
@@ -231,6 +274,8 @@ public final class LunarTransit {
 			kinetics.despawn(bodyId);
 			return true;
 		}
+		// The transfer stage is spent. Retire it rather than leaving it hanging at 30 km.
+		if (moon.getEntity(mission.vehicle) instanceof TransitEntity spent) spent.discard();
 
 		crew.sendSystemMessage(Component.translatable("cosmos.transit.arrived",
 				String.format("%.0f", descentSpeed), String.format("%.0f", ARRIVAL_ALTITUDE)));
@@ -291,6 +336,7 @@ public final class LunarTransit {
 	private static void touchdown(ServerPlayer crew, Mission mission, double speed) {
 		crew.stopRiding();
 		ServerLevel level = crew.level();
+		if (level.getEntity(mission.vehicle) instanceof TransitEntity spent) spent.discard();
 		double touchdownLimit = KineticsMod.service() == null ? 2.0
 				: KineticsMod.service().constants().d("landing.touchdown_speed") * 3.0;
 

@@ -148,6 +148,24 @@ public final class CosmosCommands {
 
         var biome = moon.getBiome(new net.minecraft.core.BlockPos(0, 80, 0));
         line(source, "biome at origin: %s", biome.getRegisteredName());
+        // Life support reads breathability from kinetics, not from a dimension whitelist, so the
+        // two answers below are the mechanism itself rather than a description of it.
+        line(source, "breathable: overworld %s, moon %s",
+                dev.lilkuzco.cosmos.life.LifeSupport.isBreathable(
+                        net.minecraft.world.level.Level.OVERWORLD),
+                dev.lilkuzco.cosmos.life.LifeSupport.isBreathable(moon.dimension()));
+        var k = kinetics.constants();
+        line(source, "mission budget: orbit %.0f + TLI %.1f = %.1f m/s to leave; "
+                        + "LOI %.1f + descent %.1f = %.1f m/s to arrive",
+                k.d("orbit.delta_v_to_orbit"), k.d("orbit.lunar_transfer_delta_v"),
+                k.d("orbit.delta_v_to_orbit") + k.d("orbit.lunar_transfer_delta_v"),
+                k.d("orbit.lunar_orbit_insertion_delta_v"), k.d("orbit.lunar_descent_delta_v"),
+                dev.lilkuzco.cosmos.moon.LunarLander.arrivalBudget(k));
+        line(source, "coast: %.0f s of transfer played over %.0f s at %.0fx",
+                kinetics.orbits().mechanics().lunarTransferTime(),
+                kinetics.orbits().mechanics().lunarTransferTime()
+                        / dev.lilkuzco.cosmos.moon.LunarTransit.TIME_COMPRESSION,
+                dev.lilkuzco.cosmos.moon.LunarTransit.TIME_COMPRESSION);
         line(source, "transits in flight: %d",
                 dev.lilkuzco.cosmos.moon.LunarTransit.inTransit());
         return 1;

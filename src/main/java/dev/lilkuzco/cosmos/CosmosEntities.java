@@ -11,7 +11,7 @@ import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.MobCategory;
 
 /**
- * Two entities, both of them windows onto kinetics bodies.
+ * Three entities. Two are windows onto kinetics bodies; the third carries the crew between them.
  *
  * <p>The tracking ranges are generous because a rocket climbs out of ordinary view very quickly -
  * a player who lit it should be able to watch it go rather than have it vanish at 64 blocks.
@@ -25,6 +25,19 @@ public final class CosmosEntities {
 	public static final EntityType<CapsuleEntity> CAPSULE = register("capsule",
 			EntityType.Builder.<CapsuleEntity>of(CapsuleEntity::new, MobCategory.MISC)
 					.noLootTable().sized(1.4F, 1.6F).clientTrackingRange(16).updateInterval(1));
+
+	/**
+	 * The transfer vehicle for the trans-lunar coast.
+	 *
+	 * <p>Not a view of a kinetics body, and it is the one entity in cosmos that is not: the coast
+	 * is a closed-form ellipse, propagated from an epoch, exactly as an orbit is. There is nothing
+	 * being integrated for it to mirror.
+	 */
+	public static final EntityType<dev.lilkuzco.cosmos.moon.TransitEntity> TRANSIT =
+			register("transit", EntityType.Builder
+					.<dev.lilkuzco.cosmos.moon.TransitEntity>of(
+							dev.lilkuzco.cosmos.moon.TransitEntity::new, MobCategory.MISC)
+					.noLootTable().sized(1.6F, 2.4F).clientTrackingRange(16).updateInterval(1));
 
 	private static <T extends Entity> EntityType<T> register(String name, EntityType.Builder<T> builder) {
 		ResourceKey<EntityType<?>> key = ResourceKey.create(Registries.ENTITY_TYPE, Cosmos.id(name));
