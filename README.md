@@ -184,6 +184,14 @@ So `CosmosRenderTest` boots a client, puts each thing cosmos draws in front of a
 screenshots it into `build/run-gametest/screenshots/`. The screenshots are the evidence and they
 are meant to be looked at.
 
+It found the **PNG generator silently truncating both 64x64 entity sheets to their top-left 16x16
+corner** — every block texture is 16x16, so a writer that hardcoded the size had been correct by
+coincidence for months. The rocket had been wearing a sixteenth of its livery.
+
+It also proves the camera shake fires, by measurement rather than assertion: eight frames a tick
+apart from a stationary camera, and the horizon swings five pixels. At the amplitude originally
+written it swung one, which is noise — the value shipped is the one the screenshots justified.
+
 It has already earned its keep beyond the rocket: it caught that the **recovery capsule's view
 never moved**. Landing resolution had been correctly moved to the server tick, but the entity was
 still mirroring its body from its own tick — and a capsule spends nearly all of its 3,300-block

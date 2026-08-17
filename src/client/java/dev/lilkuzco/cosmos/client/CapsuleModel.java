@@ -23,24 +23,8 @@ import net.minecraft.client.model.geom.builders.PartDefinition;
  */
 public final class CapsuleModel {
 
-	/** The hull. Its own layer, so it can be submitted without the canopy. */
 	public static final ModelLayerLocation LAYER =
 			new ModelLayerLocation(Cosmos.id("capsule"), "main");
-
-	/**
-	 * The parachute, as a SEPARATE baked layer.
-	 *
-	 * <p>Not a part of the hull layer toggled with {@code visible}. A {@link ModelPart} is shared
-	 * mutable state owned by the bake, so flipping a flag from inside a draw races every other
-	 * capsule in the world — and it did not put a canopy on screen. Splitting by
-	 * {@code getChild} instead did not work either: {@code Model.Simple} wants a root, and handing
-	 * it a child rendered nothing at all, which is how the capsule went from visible back to
-	 * invisible between two runs of the render battery.
-	 *
-	 * <p>Two layers, two roots, no shared state, no flags.
-	 */
-	public static final ModelLayerLocation CANOPY_LAYER =
-			new ModelLayerLocation(Cosmos.id("capsule"), "canopy");
 
 	public static final String HULL = "hull";
 	public static final String CANOPY = "canopy";
@@ -52,34 +36,39 @@ public final class CapsuleModel {
 		MeshDefinition mesh = new MeshDefinition();
 		PartDefinition root = mesh.getRoot();
 
-		// Heat shield at the bottom, tapering up to a shoulder and a docking collar.
-		root.addOrReplaceChild(HULL,
+		PartDefinition hull = root.addOrReplaceChild(HULL,
 				CubeListBuilder.create()
 						.texOffs(0, 0).addBox(-5.0F, 0.0F, -5.0F, 10, 3, 10)
 						.texOffs(0, 13).addBox(-4.0F, 3.0F, -4.0F, 8, 5, 8)
 						.texOffs(0, 26).addBox(-3.0F, 8.0F, -3.0F, 6, 2, 6),
 				PartPose.ZERO);
 
-		return LayerDefinition.create(mesh, 64, 64);
-	}
-
-	public static LayerDefinition createCanopyLayer() {
-		MeshDefinition mesh = new MeshDefinition();
-		PartDefinition root = mesh.getRoot();
-
-		// Cubes sit AT the part's origin and the part is offset, rather than the cubes being
-		// baked 22 units away from it. A part whose geometry is far from its own origin renders
-		// unreliably - the canopy did not appear at all, even submitted unconditionally, until
-		// the offset moved into the PartPose where it belongs.
-		PartDefinition canopy = root.addOrReplaceChild(CANOPY,
+		// The canopy: 12x4x12, NOT 16x4x16.
+		//
+		// A box 16 wide and 16 deep unwraps to 2*(16+16) = 64 pixels of UV width - the entire
+		// width of a 64x64 sheet, with not one pixel of margin. That box never produced geometry
+		// in any arrangement: its own layer, its own identifier, cubes at the origin, cubes
+		// offset, submitted alone, submitted at a different order, and against a texture painted
+		// magenta to prove the UVs were not the problem. At 12x12 the unwrap is 48 wide and it
+		// draws. Leave it room.
+		// A CHILD OF THE HULL, not a sibling of it.
+		//
+		// The working reference model in the empire - crude_empire's pumpjack - nests everything
+		// under a single child of root, and every arrangement here that made the canopy a SECOND
+		// child of root drew the hull and silently dropped the canopy. Nesting is the shape that
+		// draws.
+		PartDefinition canopy = hull.addOrReplaceChild(CANOPY,
 				CubeListBuilder.create()
-						.texOffs(0, 34).addBox(-8.0F, 0.0F, -8.0F, 16, 4, 16),
-				PartPose.offset(0.0F, 22.0F, 0.0F));
+						.texOffs(0, 34).addBox(-6.0F, 22.0F, -6.0F, 12, 4, 12),
+				PartPose.ZERO);
+
+		// Risers, nested under the canopy so they inherit its visibility - a canopy floating free
+		// of the capsule reads as a UFO rather than a parachute.
 		for (int i = 0; i < 4; i++) {
 			float angle = (float) (i * Math.PI / 2.0 + Math.PI / 4.0);
 			canopy.addOrReplaceChild("riser_" + i,
 					CubeListBuilder.create()
-							.texOffs(0, 54).addBox(-0.5F, -12.0F, 4.0F, 1, 12, 1),
+							.texOffs(0, 54).addBox(-0.5F, 10.0F, 3.5F, 1, 12, 1),
 					PartPose.rotation(0.0F, angle, 0.0F));
 		}
 

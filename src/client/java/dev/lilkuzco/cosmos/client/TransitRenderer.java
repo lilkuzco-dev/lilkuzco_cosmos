@@ -31,9 +31,9 @@ public class TransitRenderer extends EntityRenderer<TransitEntity, EntityRenderS
 
 	public TransitRenderer(EntityRendererProvider.Context context) {
 		super(context);
-		// The hull layer, which no longer contains a canopy at all.
-		this.model = new Model.Simple(context.bakeLayer(CapsuleModel.LAYER),
-				RenderTypes::entitySolid);
+		net.minecraft.client.model.geom.ModelPart root = context.bakeLayer(CapsuleModel.LAYER);
+		root.getChild(CapsuleModel.HULL).getChild(CapsuleModel.CANOPY).visible = false;
+		this.model = new Model.Simple(root, RenderTypes::entitySolid);
 		this.shadowRadius = 0.0F;   // nothing to cast a shadow on, 120 km up
 	}
 

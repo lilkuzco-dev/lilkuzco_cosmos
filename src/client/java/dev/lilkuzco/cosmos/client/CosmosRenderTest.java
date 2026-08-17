@@ -94,6 +94,27 @@ public class CosmosRenderTest implements FabricClientGameTest {
 				context.takeScreenshot("cosmos_rocket_" + tier + "_climbing");
 			}
 
+			// ---- 3b. CAMERA SHAKE, proved or not shipped ------------------------
+			//
+			// A stationary spectator watching a burning first stage. If the shake fires, the camera
+			// is nudged every frame and consecutive shots do not line up; if it does not, three
+			// frames from a camera that never moved are identical. That is the whole proof, and it
+			// is why these three are taken back to back with nothing else changing.
+			server.runCommand("kill @e[type=cosmos:rocket]");
+			context.waitTicks(10);
+			server.runCommand("gamemode spectator @p");
+			server.runCommand("tp @p -6 101 0 -90 0");
+			context.waitTicks(10);
+			context.takeScreenshot("cosmos_shake_before");
+			server.runCommand("execute positioned 0 100 0 run cosmos testlaunch heavy kerosene");
+			context.waitTicks(4);
+			// Eight frames a tick apart. The shake oscillates, so three samples two ticks apart can
+			// all land on the same phase and read as a stationary camera - which they did.
+			for (int frame = 0; frame < 8; frame++) {
+				context.takeScreenshot(String.format("cosmos_shake_during_%02d", frame));
+				context.waitTicks(1);
+			}
+
 			// ---- 4. a wider shot, so the plume reads as a plume -----------------
 			server.runCommand("kill @e[type=cosmos:rocket]");
 			context.waitTicks(10);
@@ -107,6 +128,22 @@ public class CosmosRenderTest implements FabricClientGameTest {
 
 			server.runCommand("kill @e[type=cosmos:rocket]");
 			context.waitTicks(10);
+
+			// ---- 4b. CLOSE-UP of the capsule model, via the transit vehicle ------
+			//
+			// The transit vehicle uses the same CapsuleModel and can be summoned next to the
+			// camera, so it gives a legible close-up in seconds instead of the two minutes a real
+			// entry takes. A descent photographed from thirty blocks cannot settle whether a part
+			// is drawn.
+			// WELL AWAY FROM THE PAD. The first version stood the model board on the launch pad and
+			// photographed it through a rocket plume.
+			server.runCommand("kill @e[type=cosmos:rocket]");
+			server.runCommand("gamemode spectator @p");
+			server.runCommand("execute positioned 30 101 30 run cosmos showcapsule");
+			server.runCommand("tp @p 30 102 25 0 -8");   // yaw 0 looks toward +Z
+			context.waitTicks(15);
+			context.takeScreenshot("cosmos_capsule_and_canopy");
+			context.waitTicks(5);
 
 			// ---- 5. the capsule: reentry glow, then the canopy -------------------
 			//
@@ -138,11 +175,33 @@ public class CosmosRenderTest implements FabricClientGameTest {
 			// Further back and higher, so more of the descent is in frame, and sampled every four
 			// ticks through the window where the canopy is out - a chute that inflates low is only
 			// deployed for a second or two and a ten-tick sample kept stepping over it.
-			server.runCommand("tp @p 3 112 34 180 -12");
-			context.waitTicks(150);
-			for (int frame = 0; frame < 28; frame++) {
+			// CLOSE. A capsule photographed from thirty blocks is ten pixels tall, and a
+			// parachute above it is a smudge - which is how a working canopy read as a
+			// missing one through six runs of chasing it.
+			server.runCommand("tp @p 12 104 6 -125 -10");
+			// WAIT FOR THE CAPSULE, do not guess when it arrives.
+			//
+			// Entry timing drifts several seconds between runs, and every fixed sample schedule I
+			// tried landed either side of the descent at least once - including the run that was
+			// supposed to confirm the fix. Polling the client for the entity removes the luck.
+			int found = -1;
+			for (int poll = 0; poll < 200 && found < 0; poll++) {
+				context.waitTicks(2);
+				int[] seen = {0};
+				context.runOnClient(client -> {
+					if (client.level == null) return;
+					for (var entity : client.level.entitiesForRendering()) {
+						if (entity instanceof dev.lilkuzco.cosmos.recovery.CapsuleEntity capsule) {
+							if (capsule.chuteOut()) seen[0] = 1;
+						}
+					}
+				});
+				if (seen[0] == 1) found = poll;
+			}
+			// A burst from the moment the canopy is out, so the whole chute descent is on record.
+			for (int frame = 0; frame < 14; frame++) {
+				context.takeScreenshot(String.format("cosmos_capsule_chute_%02d", frame));
 				context.waitTicks(4);
-				context.takeScreenshot(String.format("cosmos_capsule_t%03d", 150 + frame * 4));
 			}
 		}
 	}

@@ -46,6 +46,27 @@ public class CapsuleEntity extends Entity {
     }
 
     /** Hand a kinetics descending body to the world as a capsule. */
+    /**
+     * A view for a body that is already flying, spawned where it can actually be seen.
+     *
+     * <p>The capsule used to be spawned at the entry point, three thousand blocks downrange. That
+     * chunk is not loaded and nobody is standing in it, so the entity was unloaded almost
+     * immediately and never travelled — and the entity tracker, which decides who to send an
+     * entity to from its chunk section, had nothing to send. The descent was invisible from the
+     * landing site, intermittently and confusingly: occasionally a section update fired for an
+     * unrelated reason and the capsule appeared for a frame, which looked like a rendering bug.
+     *
+     * <p>A view belongs where there is somebody to view it.
+     */
+    public static CapsuleEntity viewFor(ServerLevel level, String bodyId, String satelliteId,
+                                        Vec3 position) {
+        CapsuleEntity capsule = new CapsuleEntity(CosmosEntities.CAPSULE, level);
+        capsule.bodyId = bodyId;
+        capsule.satelliteId = satelliteId;
+        capsule.setPos(position.x(), position.y(), position.z());
+        return level.addFreshEntity(capsule) ? capsule : null;
+    }
+
     public static CapsuleEntity create(ServerLevel level, Vec3 position, Vec3 velocity,
                                        String satelliteId, Profile profile) {
         KineticsService kinetics = KineticsMod.service();
@@ -60,7 +81,8 @@ public class CapsuleEntity extends Entity {
                 position, velocity, FlightDirector.Mission.BALLISTIC);
         if (handle == null) return null;
 
-        level.addFreshEntity(capsule);
+        // NOT added to the world here. The body flies; the view is created by RecoveryTracker
+        // once the descent is close enough for anyone to see it.
         return capsule;
     }
 
@@ -90,9 +112,30 @@ public class CapsuleEntity extends Entity {
         super.tick();
     }
 
+    /**
+     * Force the canopy on, for the render battery's model board.
+     *
+     * <p>A parachute is only deployed for the last few seconds of a four-thousand-block entry, on
+     * an object ten pixels tall. Verifying it by photographing a real descent took six runs and
+     * two hours and never produced a legible frame - so the battery gets a capsule it can stand
+     * next to instead. The flight is verified elsewhere; this verifies the MODEL.
+     */
+    public void showChuteForDisplay() {
+        entityData.set(CHUTE, Boolean.TRUE);
+    }
+
     /** Called by {@link RecoveryTracker} every server tick, loaded chunks or not. */
     public void follow(ServerLevel server, KineticBody body) {
-        setPos(body.position().x(), body.position().y(), body.position().z());
+        // teleportTo, NOT setPos.
+        //
+        // setPos moves the entity and its bounding box and tells nobody. The entity tracker
+        // decides who to send an entity to from its chunk section, and that membership is
+        // refreshed on the entity's own tick - which does not run out here. So the tracker went on
+        // believing the capsule was still at the entry point 3,300 blocks downrange and never sent
+        // it to any client. It was on screen occasionally, when a section update happened to
+        // fire for another reason, which is worse than never: it looked like a rendering problem.
+        teleportTo(server, body.position().x(), body.position().y(), body.position().z(),
+                java.util.Set.of(), getYRot(), getXRot(), false);
 
         // Plasma intensity straight off the kinetics heating field - a state value, never damage.
         double threshold = body.profile().airframe().overheatThreshold();

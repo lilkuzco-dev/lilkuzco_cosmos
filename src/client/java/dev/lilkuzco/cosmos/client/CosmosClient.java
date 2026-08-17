@@ -34,8 +34,6 @@ public final class CosmosClient implements ClientModInitializer {
 		ModelLayerRegistry.registerModelLayer(RocketModel.LAYER, RocketModel::createLayer);
 		EntityRendererRegistry.register(CosmosEntities.ROCKET, RocketRenderer::new);
 		ModelLayerRegistry.registerModelLayer(CapsuleModel.LAYER, CapsuleModel::createLayer);
-		ModelLayerRegistry.registerModelLayer(CapsuleModel.CANOPY_LAYER,
-				CapsuleModel::createCanopyLayer);
 		EntityRendererRegistry.register(CosmosEntities.CAPSULE, CapsuleRenderer::new);
 		EntityRendererRegistry.register(CosmosEntities.TRANSIT, TransitRenderer::new);
 

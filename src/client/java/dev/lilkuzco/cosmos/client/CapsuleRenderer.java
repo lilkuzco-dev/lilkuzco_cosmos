@@ -29,17 +29,14 @@ public class CapsuleRenderer extends EntityRenderer<CapsuleEntity, CapsuleRender
 
 	private static final Identifier TEXTURE = Cosmos.id("textures/entity/capsule.png");
 
-	private final Model.Simple hull;
-	private final Model.Simple canopy;
+	private final Model.Simple model;
+	private final net.minecraft.client.model.geom.ModelPart canopy;
 
 	public CapsuleRenderer(EntityRendererProvider.Context context) {
 		super(context);
-		// Two baked layers, two roots. Model.Simple wants a root: handing it a child part drew
-		// nothing at all, and toggling `visible` on a shared part drew nothing either.
-		this.hull = new Model.Simple(context.bakeLayer(CapsuleModel.LAYER),
-				RenderTypes::entitySolid);
-		this.canopy = new Model.Simple(context.bakeLayer(CapsuleModel.CANOPY_LAYER),
-				RenderTypes::entitySolid);
+		net.minecraft.client.model.geom.ModelPart root = context.bakeLayer(CapsuleModel.LAYER);
+		this.model = new Model.Simple(root, RenderTypes::entitySolid);
+		this.canopy = root.getChild(CapsuleModel.HULL).getChild(CapsuleModel.CANOPY);
 		this.shadowRadius = 0.6F;
 	}
 
@@ -82,14 +79,9 @@ public class CapsuleRenderer extends EntityRenderer<CapsuleEntity, CapsuleRender
 
 		poseStack.pushPose();
 		poseStack.mulPose(com.mojang.math.Axis.ZP.rotationDegrees(state.sway));
-		collector.submitModel(hull, Unit.INSTANCE, poseStack, renderType, state.lightCoords,
+		canopy.visible = state.chute;
+		collector.submitModel(model, Unit.INSTANCE, poseStack, renderType, state.lightCoords,
 				OverlayTexture.NO_OVERLAY, tint, null);
-		if (state.chute) {
-			// The canopy is never tinted by reentry heating: by the time it is out, the heating
-			// is long over, and a glowing parachute would be a lie about what is holding you up.
-			collector.submitModel(canopy, Unit.INSTANCE, poseStack, renderType, state.lightCoords,
-					OverlayTexture.NO_OVERLAY, -1, null);
-		}
 		poseStack.popPose();
 
 		super.submit(state, poseStack, collector, camera);

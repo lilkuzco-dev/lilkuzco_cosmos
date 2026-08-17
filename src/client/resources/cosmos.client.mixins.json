@@ -1,0 +1,13 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "dev.lilkuzco.cosmos.client.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "client": [
+    "CameraMixin",
+    "CameraAccessMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

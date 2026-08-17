@@ -24,7 +24,11 @@ public final class CosmosEntities {
 
 	public static final EntityType<CapsuleEntity> CAPSULE = register("capsule",
 			EntityType.Builder.<CapsuleEntity>of(CapsuleEntity::new, MobCategory.MISC)
-					.noLootTable().sized(1.4F, 1.6F).clientTrackingRange(16).updateInterval(1));
+					// TALL ENOUGH TO CONTAIN THE PARACHUTE. The hull is 0.6 blocks and the canopy
+					// sits at 1.4-1.63, so at the old 1.6 the canopy was outside the entity's
+					// own box - and geometry outside the culling box is dropped. The hull drew
+					// and the canopy did not, which is precisely the symptom.
+					.noLootTable().sized(1.6F, 3.0F).clientTrackingRange(16).updateInterval(1));
 
 	/**
 	 * The transfer vehicle for the trans-lunar coast.

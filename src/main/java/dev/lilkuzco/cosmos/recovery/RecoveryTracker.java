@@ -51,6 +51,8 @@ public final class RecoveryTracker {
         double lastSpeed;
 
         CapsuleEntity view;
+        double targetX;
+        double targetZ;
 
         Pending(String bodyId, String satelliteId, SatellitePayload payload, ServerLevel level) {
             this.bodyId = bodyId;
@@ -74,10 +76,26 @@ public final class RecoveryTracker {
     }
 
     /** Record a capsule on its way down. Called at the deorbit handoff. */
-    /** Attach the view the tracker will drive. Optional: a flight with no entity still resolves. */
-    public static void view(String bodyId, CapsuleEntity capsule) {
+    /**
+     * How close to its aim point a capsule gets something to look at, in blocks.
+     *
+     * <p>Inside a normal render distance, so the chunks are loaded and the entity tracker has
+     * somebody to send it to. Wide enough that the whole parachute descent is on screen.
+     */
+    public static final double VIEW_RANGE = 160.0;
+
+    /**
+     * Where this capsule is aimed, so the tracker knows when it is close enough to be watched.
+     *
+     * <p>A deorbit is aimed at the operator, so "near the target" and "near a player" are the same
+     * place - and it is the only stretch of the four-thousand-block entry that anybody can see.
+     */
+    public static void aimedAt(String bodyId, double targetX, double targetZ) {
         Pending pending = PENDING.get(bodyId);
-        if (pending != null) pending.view = capsule;
+        if (pending != null) {
+            pending.targetX = targetX;
+            pending.targetZ = targetZ;
+        }
     }
 
     public static void track(String bodyId, String satelliteId, SatellitePayload payload,
@@ -112,6 +130,29 @@ public final class RecoveryTracker {
                 // Drive the view from here, on the server tick, because the entity's own tick
                 // does not run over the unloaded chunks that are most of an entry. Without this
                 // the capsule sits where it was spawned and nothing arrives to be watched.
+                // Create the view once the capsule is over WORLD THAT IS LOADED, and only then.
+                //
+                // Altitude was the wrong gate: a capsule enters at 240 m and descends, so it is
+                // below any altitude threshold from the first tick - including while it is still
+                // three thousand blocks downrange over chunks nobody has loaded, which is exactly
+                // where a spawned entity gets unloaded again before it can travel.
+                //
+                // "Is there loaded world here" is the actual question, so ask it.
+                // Close to where it is aimed - which is where the operator is standing, and the
+                // only part of a four-thousand-block entry anyone can watch.
+                //
+                // Two earlier gates were wrong for instructive reasons. Altitude was wrong because
+                // a capsule enters at 240 m and is below any threshold from the first tick, three
+                // thousand blocks downrange. "Is the chunk loaded" was right in spirit but fires
+                // only in the last second, because the capsule is still travelling hundreds of
+                // blocks horizontally under canopy.
+                double dx = handle.body().position().x() - pending.targetX;
+                double dz = handle.body().position().z() - pending.targetZ;
+                boolean nearTarget = dx * dx + dz * dz < VIEW_RANGE * VIEW_RANGE;
+                if (pending.view == null && nearTarget) {
+                    pending.view = CapsuleEntity.viewFor(pending.level(), pending.bodyId(),
+                            pending.satelliteId(), handle.body().position());
+                }
                 if (pending.view != null && pending.view.isAlive()) {
                     pending.view.follow(pending.level(), handle.body());
                 }

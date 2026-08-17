@@ -30,5 +30,11 @@
   },
   "suggests": {
     "crude_empire": "*"
-  }
+  },
+  "mixins": [
+    {
+      "config": "cosmos.client.mixins.json",
+      "environment": "client"
+    }
+  ]
 }

@@ -72,6 +72,8 @@ public final class CosmosCommands {
 
                 .then(Commands.literal("padtest").executes(CosmosCommands::padTest))
 
+                .then(Commands.literal("showcapsule").executes(CosmosCommands::showCapsule))
+
                 .then(Commands.literal("isrutest").executes(CosmosCommands::isruTest))
 
                 .then(Commands.literal("economy")
@@ -397,6 +399,30 @@ public final class CosmosCommands {
         line(source, "conservation: residual %.3e kg, tolerance %.3e -> %s",
                 ledger.residual(), ledger.tolerance(),
                 ledger.balanced() ? "BALANCED" : "BROKEN");
+        return 1;
+    }
+
+    /**
+     * Stand a capsule up with its parachute out, for the render battery to photograph.
+     *
+     * <p>Not a flight - a model board. The recovery chain is verified by flying it; this exists
+     * because the canopy is only deployed for the last seconds of an entry on an object ten pixels
+     * tall, and "is this part drawn at all" is a question that deserves a legible answer in
+     * seconds rather than a two-minute descent and a lucky frame.
+     */
+    private static int showCapsule(CommandContext<CommandSourceStack> ctx) {
+        CommandSourceStack source = ctx.getSource();
+        var position = source.getPosition();
+        var capsule = dev.lilkuzco.cosmos.recovery.CapsuleEntity.viewFor(source.getLevel(),
+                "cosmos:display", "display",
+                new dev.lilkuzco.kinetics.math.Vec3(position.x(), position.y(), position.z()));
+        if (capsule == null) {
+            source.sendFailure(Component.literal("could not create a display capsule"));
+            return 0;
+        }
+        capsule.showChuteForDisplay();
+        line(source, "display capsule at (%.0f, %.0f, %.0f), canopy deployed",
+                position.x(), position.y(), position.z());
         return 1;
     }
 

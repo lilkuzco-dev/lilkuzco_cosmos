@@ -15,11 +15,25 @@ S = 16
 OUT = os.path.join(os.path.dirname(__file__), "..", "src", "main", "resources", "assets", "cosmos", "textures")
 
 def png(path, px):
-    raw = b"".join(b"\x00" + b"".join(bytes(px[y][x]) for x in range(S)) for y in range(S))
+    """Write an RGBA PNG, taking its size FROM THE PIXEL ARRAY.
+
+    This used to hardcode S (16) for both the header and the row loop, which silently
+    truncated every larger image to its top-left 16x16 corner. Block and item textures are
+    all 16x16 so nothing complained for months - and then two 64x64 entity sheets were
+    written through it and came out as corners. The rocket still looked plausible, because
+    its body UVs happened to overlap what survived; the parachute canopy lives at rows
+    34-53 and vanished completely.
+
+    A writer that ignores the shape of its input is not a writer, it is a coincidence.
+    """
+    height = len(px)
+    width = len(px[0])
+    raw = b"".join(b"\x00" + b"".join(bytes(px[y][x]) for x in range(width))
+                   for y in range(height))
     def chunk(tag, data):
         c = struct.pack(">I", len(data)) + tag + data
         return c + struct.pack(">I", zlib.crc32(tag + data) & 0xFFFFFFFF)
-    ihdr = struct.pack(">IIBBBBB", S, S, 8, 6, 0, 0, 0)   # 8-bit RGBA
+    ihdr = struct.pack(">IIBBBBB", width, height, 8, 6, 0, 0, 0)   # 8-bit RGBA
     blob = (b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", ihdr)
             + chunk(b"IDAT", zlib.compress(raw, 9)) + chunk(b"IEND", b""))
     os.makedirs(os.path.dirname(path), exist_ok=True)

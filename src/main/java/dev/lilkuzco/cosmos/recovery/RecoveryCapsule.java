@@ -91,7 +91,7 @@ public final class RecoveryCapsule {
         if (capsule == null) return Result.failed("could not create the capsule entity");
 
         RecoveryTracker.track(profile.id(), satelliteId, payload, level);
-        RecoveryTracker.view(profile.id(), capsule);
+        RecoveryTracker.aimedAt(profile.id(), targetX, targetZ);
 
         Cosmos.LOG.info("deorbit {}: aimed at ({}, {}), entering {} m short at ({}, {}), "
                         + "altitude {} m, {} m/s",
