@@ -55,14 +55,38 @@ import java.util.UUID;
 public final class LunarTransit {
 
 	/**
-	 * How much faster than real the coast is played.
+	 * How much faster than real the Moon's coast is played.
 	 *
-	 * <p>A GAME decision, not a physical one, which is exactly why it lives here in cosmos and not
-	 * in kinetics' constants: the physics library has no opinion about how long a player should
-	 * sit still. Kinetics says the transfer takes 99,747 s; at 415x that is four minutes, which is
-	 * long enough to be a journey and short enough to be one you make more than once.
+	 * <p>A GAME decision, not a physical one, which is why it lives here in cosmos and not in
+	 * kinetics' constants: the physics library has no opinion about how long a player should sit
+	 * still. Kinetics says the lunar transfer takes 99,747 s; at 415x that is four minutes, which
+	 * is long enough to be a journey and short enough to be one you make more than once.
 	 */
 	public static final double TIME_COMPRESSION = 415.0;
+
+	/**
+	 * The clock runs faster the further you go, as the SQUARE ROOT of the distance.
+	 *
+	 * <p>A single compression rate is the honest choice right up until it is unplayable. At a flat
+	 * 415x the outer moon's coast is <b>eleven minutes</b> of sitting in a capsule with nothing to
+	 * do — long enough that a player alt-tabs, which means the ride has quietly become the loading
+	 * screen it was built to avoid. The whole point of riding a transfer is that it is not one.
+	 *
+	 * <p>Scaling the rate by the square root of the transfer time keeps the property that matters
+	 * — <b>further is still longer, and felt as longer</b> — while bounding the tail. The Moon
+	 * stays at four minutes; the outer moon becomes six and a half rather than eleven. A player
+	 * can tell the two apart without resenting the second.
+	 *
+	 * <p>It remains exactly one fiction, and it is still the only one: the trajectory, the budget,
+	 * the arrival speed and the burn are all real, and the telemetry on the action bar is read off
+	 * kinetics' own solution. Only the clock is negotiable, and now it is negotiable per distance.
+	 */
+	public static double compressionFor(double simulatedSeconds,
+	                                    dev.lilkuzco.kinetics.constants.Constants k) {
+		double lunar = Destination.MOON.coastSeconds(k);
+		if (lunar <= 0.0 || simulatedSeconds <= 0.0) return TIME_COMPRESSION;
+		return TIME_COMPRESSION * Math.sqrt(simulatedSeconds / lunar);
+	}
 
 	/** Altitude above the lunar surface at which the lander separates and the descent begins. */
 	public static final double ARRIVAL_ALTITUDE = 30_000.0;
@@ -169,7 +193,7 @@ public final class LunarTransit {
 		}
 
 		double simulated = destination.coastSeconds(kinetics.constants());
-		double coast = simulated / TIME_COMPRESSION;
+		double coast = simulated / compressionFor(simulated, kinetics.constants());
 		Mission mission = new Mission(crew.getUUID(), propellant,
 				kinetics.worldTimeSeconds(), coast, origin.immutable(), destination);
 		mission.vehicle = vehicle.getId();
@@ -227,7 +251,9 @@ public final class LunarTransit {
 			// Range shrinks along the transfer ellipse, from the parking orbit out to the Moon.
 			double r1 = m.radiusForAltitude(kinetics.constants().d("orbit.reference_orbit_altitude"));
 			double range = m.lunarDistance() - (m.lunarDistance() - r1) * fraction;
-			double remaining = (mission.coastSeconds() - elapsed) * TIME_COMPRESSION;
+			double remaining = (mission.coastSeconds() - elapsed)
+					* compressionFor(mission.destination().coastSeconds(kinetics.constants()),
+							kinetics.constants());
 			dev.lilkuzco.cosmos.life.LifeSupport.actionBar(crew,
 					Component.translatable("cosmos.transit.telemetry",
 							String.format("%.0f", (m.lunarDistance() - range) / 1000.0),

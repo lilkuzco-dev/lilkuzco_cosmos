@@ -46,7 +46,7 @@ public final class Cosmos implements ModInitializer {
         dev.lilkuzco.cosmos.life.LifeSupport.register();
 
         LOG.info("cosmos {} ready: {} rocket tiers, {} propellant grades",
-                "0.2.0",
+                "0.2.1",
                 dev.lilkuzco.cosmos.rocket.RocketTier.LADDER.size(),
                 dev.lilkuzco.cosmos.propellant.Propellants.LADDER.size());
     }

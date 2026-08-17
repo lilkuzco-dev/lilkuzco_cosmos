@@ -141,7 +141,7 @@ inverted:
 | gravity | 0.165 g | 0.138 g |
 | arriving | retro-burn, 444 m/s of propellant | **parachutes, for free** |
 | a canopy at 200 m/s | **0.0 Pa** | **9,871 Pa** |
-| coast | 240 s ridden | 666 s ridden |
+| coast | 240 s ridden (4.0 min) | 400 s ridden (6.7 min) |
 | feedstock | water ice → oxygen **and** fuel | ammonia → fuel and buffer gas, **no oxygen** |
 
 Neither arrival is a special case. They fall out of one boolean — whether kinetics was told the
@@ -151,6 +151,13 @@ dimension has an atmosphere — because every force in the model reads the densi
 exactly what `PLANETS.md` measured and why interplanetary distance has to wait for a real
 heliocentric frame. What distance buys here is *time* and a different way to arrive, not a bigger
 rocket.
+
+**The clock runs faster the further you go**, as the square root of the distance. A single
+compression rate is honest right up until it is unplayable: at a flat 415× Haze was **eleven
+minutes** of sitting in a capsule with nothing to do, which is long enough that a player alt-tabs —
+and a ride you alt-tab out of has become the loading screen it was built to avoid. Square-root
+scaling keeps the property that matters, that further is *felt* as longer, while bounding the tail.
+The Moon stays at four minutes; Haze is six and a half rather than eleven.
 
 **The payload is the itinerary.** A lunar lander has engines and no heat shield; an entry capsule
 has a heat shield and no engines. Neither can do the other's job, so which one sits in the pad

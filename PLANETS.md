@@ -114,7 +114,12 @@ from the Moon's retro-burn. That contrast is worth more than the distance.
 ## Open questions
 
 1. ~~**A, B, or C?**~~ **Ruled: B now, A approved for scoping.**
-2. If A: do you want **launch windows** as a hard constraint (you wait for the window) or a soft
-   one (you can go anytime, badly)? Hard is more real and more frustrating; it is your server.
-3. Should other bodies have their own **finite** resources like lunar ice, or is scarcity the
-   Moon's characteristic and elsewhere is abundant?
+2. ~~If A: hard or soft **launch windows**?~~ **Decided: SOFT, with a real delta-v penalty** — see
+   `lilkuzco_kinetics/HELIOCENTRIC.md`. A hard window contradicts the law the launch pad already
+   runs on (it never refuses a launch it merely disapproves of), and the genuinely realistic option
+   is the soft one: real planners are charged by a closed window, not blocked by it. Soft turns a
+   wait into a decision.
+3. ~~Should other bodies have **finite** resources like lunar ice?~~ **Answered by Haze:** its
+   ammonia is finite too, but the scarcity that bites there is *compositional* rather than
+   quantitative — cracking yields fuel and buffer gas and no oxygen at all. Two kinds of running
+   out is more interesting than two of the same kind.

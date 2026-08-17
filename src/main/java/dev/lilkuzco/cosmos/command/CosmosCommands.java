@@ -585,9 +585,11 @@ public final class CosmosCommands {
                     d, d.injectionDeltaV(k), d.departureBudget(k), d.arrivalSpeed(k),
                     d.arrivalAltitude(),
                     d.aerodynamicArrival() ? "PARACHUTES" : "retro-burn");
-            line(source, "   coast %.0f s simulated -> %.0f s ridden",
-                    d.coastSeconds(k),
-                    d.coastSeconds(k) / dev.lilkuzco.cosmos.moon.LunarTransit.TIME_COMPRESSION);
+            double simulated = d.coastSeconds(k);
+            double compression = dev.lilkuzco.cosmos.moon.LunarTransit.compressionFor(simulated, k);
+            line(source, "   coast %.0f s simulated -> %.0f s ridden (%.0fx, %.1f min)",
+                    simulated, simulated / compression, compression,
+                    simulated / compression / 60.0);
         }
         return 1;
     }
