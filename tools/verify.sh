@@ -8,7 +8,8 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 export JAVA_HOME="${JAVA_HOME:-$HOME/jdks/jdk-25.0.4+7/Contents/Home}"
 
-KIN_CORE="$HOME/.m2/repository/dev/lilkuzco/kinetics-core/0.1.0/kinetics-core-0.1.0.jar"
+KIN_VERSION="$(sed -n 's/^kinetics_version=//p' gradle.properties)"
+KIN_CORE="$HOME/.m2/repository/dev/lilkuzco/kinetics-core/$KIN_VERSION/kinetics-core-$KIN_VERSION.jar"
 if [ ! -f "$KIN_CORE" ]; then
   echo "kinetics-core not in the local maven repo. Run:" >&2
   echo "  (cd ../lilkuzco_kinetics && ./gradlew :core:publishToMavenLocal)" >&2
@@ -24,7 +25,10 @@ rm -rf "$OUT" && mkdir -p "$OUT"
   src/main/java/dev/lilkuzco/cosmos/propellant/Propellant.java \
   src/main/java/dev/lilkuzco/cosmos/rocket/RocketTier.java \
   src/main/java/dev/lilkuzco/cosmos/rocket/LaunchPipeline.java \
+  src/main/java/dev/lilkuzco/cosmos/moon/LunarLander.java \
   verify/java/dev/lilkuzco/cosmos/propellant/Propellants.java \
-  verify/java/dev/lilkuzco/cosmos/verify/PhaseAVerification.java
+  verify/java/dev/lilkuzco/cosmos/verify/PhaseAVerification.java \
+  verify/java/dev/lilkuzco/cosmos/verify/PhaseBVerification.java
 
 "$JAVA_HOME/bin/java" -cp "$OUT:$KIN_CORE" dev.lilkuzco.cosmos.verify.PhaseAVerification
+"$JAVA_HOME/bin/java" -cp "$OUT:$KIN_CORE" dev.lilkuzco.cosmos.verify.PhaseBVerification

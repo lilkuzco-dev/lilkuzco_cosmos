@@ -11,6 +11,7 @@ repositories {
 	// kinetics-core is published here by `../lilkuzco_kinetics/gradlew :core:publishToMavenLocal`.
 	// Cosmos consumes it as a normal library and adds NO physics of its own.
 	mavenLocal()
+	mavenCentral()
 }
 
 loom {
@@ -36,8 +37,17 @@ dependencies {
 	// The kinetics Fabric adapter (KineticsMod / KineticsService / MinecraftWorldProbe) ships in
 	// the mod jar, not in kinetics-core — core has no Minecraft dependency by design. At runtime
 	// the loaded kinetics mod provides these, so compileOnly is exactly right.
-	compileOnly files("${rootDir}/../lilkuzco_kinetics/fabric/build/libs/lilkuzco-kinetics-0.1.2.jar")
+	compileOnly files("${rootDir}/../lilkuzco_kinetics/fabric/build/libs/lilkuzco-kinetics-${kinetics_version}.jar")
 	testImplementation "dev.lilkuzco:kinetics-core:${project.kinetics_version}"
+
+	testImplementation platform("org.junit:junit-bom:5.13.4")
+	testImplementation "org.junit.jupiter:junit-jupiter"
+	testRuntimeOnly "org.junit.platform:junit-platform-launcher"
+}
+
+test {
+	useJUnitPlatform()
+	testLogging { events "passed", "failed", "skipped" }
 }
 
 processResources {

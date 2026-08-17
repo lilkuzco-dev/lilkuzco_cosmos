@@ -75,6 +75,78 @@ public final class CosmosItems {
         }
     }
 
+    /**
+     * A pressure suit. Its DURABILITY is its oxygen.
+     *
+     * <p>Which means the vanilla durability bar is an oxygen gauge for free, refilling is item
+     * repair, and the value is saved and synced by machinery that already exists. No data
+     * component, no HUD code, no packet.
+     */
+    public static class PressureSuitItem extends Item {
+        public PressureSuitItem(Properties properties) {
+            super(properties);
+        }
+
+        @Override
+        public void appendHoverText(ItemStack stack, TooltipContext context,
+                                    TooltipDisplay display, Consumer<Component> lines,
+                                    TooltipFlag flag) {
+            int air = dev.lilkuzco.cosmos.life.LifeSupport.oxygenOf(stack);
+            lines.accept(Component.translatable("cosmos.tooltip.suit.oxygen",
+                    air / 20, stack.getMaxDamage() / 20));
+        }
+    }
+
+    /** A portable tank. Right-click to pour it into a worn suit. */
+    public static class OxygenTankItem extends Item {
+        public OxygenTankItem(Properties properties) {
+            super(properties);
+        }
+
+        @Override
+        public void appendHoverText(ItemStack stack, TooltipContext context,
+                                    TooltipDisplay display, Consumer<Component> lines,
+                                    TooltipFlag flag) {
+            lines.accept(Component.translatable("cosmos.tooltip.tank.capacity",
+                    dev.lilkuzco.cosmos.life.LifeSupport.TANK_TICKS / 20));
+        }
+    }
+
+    /**
+     * The lander. Goes in the payload slot where a satellite would, and changes what a launch is.
+     *
+     * <p>A rocket with a satellite aboard is something you send. A rocket with this aboard is
+     * somewhere you go: the pad puts anyone standing on the apron into the vehicle at ignition.
+     */
+    public static class LanderItem extends Item {
+        public LanderItem(Properties properties) {
+            super(properties);
+        }
+
+        @Override
+        public void appendHoverText(ItemStack stack, TooltipContext context,
+                                    TooltipDisplay display, Consumer<Component> lines,
+                                    TooltipFlag flag) {
+            lines.accept(Component.translatable("cosmos.tooltip.lander.desc"));
+            lines.accept(Component.translatable("cosmos.tooltip.lander.mass",
+                    (int) dev.lilkuzco.cosmos.moon.LunarLander.WET_MASS_KG,
+                    (int) dev.lilkuzco.cosmos.moon.LunarLander.PROPELLANT_KG));
+        }
+    }
+
+    public static final Item LUNAR_LANDER = register("lunar_lander",
+            props -> new LanderItem(props.stacksTo(1)));
+
+    public static final Item ROCKET_LUNAR = register("rocket_lunar",
+            props -> new RocketItem(RocketTier.LUNAR, props.stacksTo(1)));
+
+    public static final Item PRESSURE_SUIT = register("pressure_suit",
+            props -> new PressureSuitItem(props.stacksTo(1)
+                    .durability(dev.lilkuzco.cosmos.life.LifeSupport.SUIT_CAPACITY_TICKS)));
+
+    public static final Item OXYGEN_TANK = register("oxygen_tank",
+            props -> new OxygenTankItem(props.stacksTo(16)));
+
     public static final Item ROCKET_SOUNDING = register("rocket_sounding",
             props -> new RocketItem(RocketTier.SOUNDING, props.stacksTo(1)));
     public static final Item ROCKET_ORBITAL = register("rocket_orbital",
@@ -87,12 +159,18 @@ public final class CosmosItems {
     public static final Item SATELLITE_COMMS = register("satellite_comms",
             props -> new SatelliteItem(SatellitePayload.COMMS, props.stacksTo(1)));
 
-    public static final List<Item> ROCKETS = List.of(ROCKET_SOUNDING, ROCKET_ORBITAL, ROCKET_HEAVY);
+    public static final List<Item> ROCKETS =
+            List.of(ROCKET_SOUNDING, ROCKET_ORBITAL, ROCKET_HEAVY, ROCKET_LUNAR);
     public static final List<Item> SATELLITES = List.of(SATELLITE_RECON, SATELLITE_COMMS);
 
     /** The tier an item represents, or null if it is not an airframe. */
     public static RocketTier tierOf(ItemStack stack) {
         return stack.getItem() instanceof RocketItem rocket ? rocket.tier() : null;
+    }
+
+    /** Whether this stack is a crewed lunar lander. */
+    public static boolean isLander(ItemStack stack) {
+        return stack.getItem() instanceof LanderItem;
     }
 
     /** The payload an item represents, or null if it is not a payload. */
@@ -105,8 +183,12 @@ public final class CosmosItems {
             out.insertAfter(Items.FIREWORK_ROCKET, ROCKET_SOUNDING);
             out.insertAfter(ROCKET_SOUNDING, ROCKET_ORBITAL);
             out.insertAfter(ROCKET_ORBITAL, ROCKET_HEAVY);
-            out.insertAfter(ROCKET_HEAVY, SATELLITE_RECON);
+            out.insertAfter(ROCKET_HEAVY, ROCKET_LUNAR);
+            out.insertAfter(ROCKET_LUNAR, SATELLITE_RECON);
             out.insertAfter(SATELLITE_RECON, SATELLITE_COMMS);
+            out.insertAfter(SATELLITE_COMMS, LUNAR_LANDER);
+            out.insertAfter(LUNAR_LANDER, PRESSURE_SUIT);
+            out.insertAfter(PRESSURE_SUIT, OXYGEN_TANK);
         });
     }
 

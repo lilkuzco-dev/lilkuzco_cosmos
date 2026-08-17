@@ -1,0 +1,5 @@
+{
+  "_comment": "The rare basins. Placed far more sparsely, so most of the surface is small pits and a large crater is a landmark.",
+  "type": "cosmos:crater",
+  "config": { "min_radius": 16, "max_radius": 34, "depth_ratio": 0.18, "rim_ratio": 0.45, "expose_floor": true }
+}

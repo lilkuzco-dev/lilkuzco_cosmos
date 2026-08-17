@@ -84,18 +84,81 @@ imports nothing from warfront.
 
 ---
 
+## The Moon (Phase B)
+
+`cosmos:moon` is a dimension registered with kinetics as **vacuum at 0.16519 g**, and that single
+registration is what makes it the Moon. Everything a player notices follows from those two facts
+rather than from lunar special-casing:
+
+- **Parachutes are inert, not disabled.** Kinetics computes `q = 0` where density is zero, so a
+  canopy produces exactly zero force. Nothing checks which dimension it is in.
+- **Landing is a retro-burn** — kinetics' RD6 powered descent, spending the lander's own
+  propellant. A lander that cannot afford its descent arrives at a few hundred metres per second.
+- **There is nothing to breathe,** which life support reads from the same atmosphere rather than
+  from a dimension whitelist.
+
+### Getting there
+
+| Leg | Cost | Who pays |
+|---|---|---|
+| ground → orbit | 2,230 m/s | the launch vehicle |
+| orbit → trans-lunar injection | 740 m/s | the launch vehicle |
+| arrival → lunar orbit | 214 m/s | the lander |
+| lunar orbit → surface | 444 m/s | the lander |
+| **total** | **3,627 m/s** | **1.63× reaching orbit** |
+
+The **lunar vehicle** is 179 tonnes on the pad against the heavy lifter's 42.5 — four times the
+rocket for 33% more delta-v, which is Tsiolkovsky's logarithm doing exactly what it does. It
+clears the trans-lunar budget on refined kerosene and **falls 708 m/s short on crude**. Nothing
+gates the Moon on the refinery; the arithmetic does.
+
+1,576 buckets of propellant, which is 49 tanks around an 11×11 pad. That is a pipeline, not a
+right-click — the launch pad is a Fabric fluid storage precisely so crude_empire's oil pipes can
+fill it, and no code in either mod names the other.
+
+### The journey
+
+The transit is **ridden, not loaded**. Kinetics puts the Hohmann transfer at 99,747 s — 27.7 hours
+of simulated time, the real 3.0 days scaled by the same factor as everything else. Cosmos plays it
+back at 415× so it takes four minutes, and **the compression is the only fiction**: the trajectory,
+the budget, the arrival speed and the burn are all real, and the telemetry on the action bar is
+read off kinetics' own solution.
+
+Stand on the apron with a lander in the payload slot when the count reaches zero and you are crew.
+Walk off it and you are not.
+
+### What Phase B does not have
+
+**No way home.** There is no ascent vehicle and no return path; a lunar base is somewhere you go
+and stay. That is a scope limit stated rather than hidden — a return trip needs propellant made on
+the Moon, and lunar industry is exactly what `ECONOMY.md` proposes rather than assumes.
+
+**No lunar economy.** Three lunar blocks generate; none of them is consumed by any recipe.
+`lunar_ice` is scenery that happens to be true. See `ECONOMY.md`.
+
+---
+
 ## Verifying it
 
 ```sh
-tools/verify.sh                         # the whole Phase A chain, headless, ~1 s
-./gradlew build                         # -> build/libs/lilkuzco-cosmos-0.1.0-A.jar
-tools/devserver.sh log.txt "cosmos selftest"
+tools/verify.sh                         # Phase A and Phase B chains, headless, ~2 s
+./gradlew build                         # -> build/libs/lilkuzco-cosmos-0.1.0-B.jar
+tools/devserver.sh log.txt "cosmos selftest" "cosmos moon"
+tools/devserver.sh log.txt "forceload add 0 0" "cosmos moonland 300" "cosmos moonland 60"
 ```
 
 `tools/verify.sh` flies propellant → launch → insertion → passes → deorbit → reentry → recovery
 against real kinetics with no Minecraft at all, and prints every number. That is possible because
 the launch pipeline is Minecraft-free by construction: a propellant grade is two specific impulses
 and a rocket tier is masses and thrusts.
+
+`cosmos moonland` drops a real lander into the real Moon dimension and logs the descent tick by
+tick. **This is not the same claim as the headless battery** and it earns its keep: the battery
+flies over `WorldProbe.flatGround`, and flat ground hid a bug where the retro-burn was solved
+against sea level rather than the surface beneath it. Over generated lunar terrain — 78 blocks up
+— a correctly fuelled lander was arriving at 15.7 m/s instead of 5.3. The burn now measures to the
+ground, and a landing onto 200-block-high terrain is a battery check so the blind spot cannot come
+back.
 
 There are no screenshots in this repo and there will not be. Screen Recording permission is not
 granted to the terminal in this environment, so `screencapture` returns desktop wallpaper — it

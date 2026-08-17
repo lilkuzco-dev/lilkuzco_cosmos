@@ -63,7 +63,9 @@ public class RocketEntity extends Entity {
      */
     public static RocketEntity launch(ServerLevel level, BlockPos pad, RocketTier tier,
                                       Propellant propellant, double fuelKg,
-                                      SatellitePayload payload, BlockState padState) {
+                                      SatellitePayload payload, boolean crewed,
+                                      java.util.List<net.minecraft.server.level.ServerPlayer> crew,
+                                      BlockState padState) {
         KineticsService kinetics = KineticsMod.service();
         if (kinetics == null) return null;
 
@@ -92,11 +94,61 @@ public class RocketEntity extends Entity {
         // Fly the gravity turn downrange along +x. A future pad could face this.
         handle.director().downrange(new Vec3(1, 0, 0));
 
-        LaunchTracker.track(rocket.bodyId, tier, payload, rocket.padPos,
-                kinetics.worldTimeSeconds());
-
         level.addFreshEntity(rocket);
+
+        // Board before the flight is tracked, so the tracker records who is actually aboard
+        // rather than who was standing nearby a moment ago.
+        net.minecraft.server.level.ServerPlayer aboard = null;
+        for (net.minecraft.server.level.ServerPlayer player : crew) {
+            if (player.startRiding(rocket, true, true)) { aboard = player; break; }
+        }
+
+        LaunchTracker.track(rocket.bodyId, tier, payload, rocket.padPos,
+                kinetics.worldTimeSeconds(), crewed, propellant, aboard);
         return rocket;
+    }
+
+    /**
+     * A view of a body that already exists, with a player aboard.
+     *
+     * <p>Used for the lunar descent, where kinetics is already flying the lander before there is
+     * anything to look at. The entity's contract is unchanged - it mirrors a body and owns no
+     * motion - the only difference is that this one has someone in it.
+     */
+    public static RocketEntity ride(ServerLevel level, String bodyId, double x, double y, double z,
+                                    net.minecraft.server.level.ServerPlayer crew) {
+        RocketEntity entity = new RocketEntity(CosmosEntities.ROCKET, level);
+        entity.bodyId = bodyId;
+        entity.tierId = RocketTier.LUNAR.id();
+        entity.setPos(x, y, z);
+        if (!level.addFreshEntity(entity)) return null;
+        crew.teleportTo(level, x, y, z, java.util.Set.of(), crew.getYRot(), crew.getXRot(), false);
+        crew.startRiding(entity, true, true);
+        return entity;
+    }
+
+    /**
+     * Crewed. One seat, and it is the payload bay.
+     *
+     * <p>A rocket that cannot be ridden is a rocket the Moon is unreachable from - the whole of
+     * Phase B is a journey somebody takes, not a satellite they launch.
+     */
+    @Override
+    protected boolean canAddPassenger(Entity passenger) {
+        return getPassengers().isEmpty();
+    }
+
+    /**
+     * Passengers ride the body's motion, not their own.
+     *
+     * <p>Vanilla would otherwise apply its own fall damage to a player descending at 400 m/s
+     * inside a vehicle that is about to cancel exactly that velocity. Whether the arrival hurt is
+     * decided once, by cosmos, from the speed kinetics reports at contact - two authorities on the
+     * same impact is precisely the split-brain the server-authoritative arrangement avoids.
+     */
+    @Override
+    public boolean canBeCollidedWith(Entity by) {
+        return false;
     }
 
     @Override
@@ -130,6 +182,14 @@ public class RocketEntity extends Entity {
         entityData.set(THROTTLE, (float) handle.body().throttle());
 
         emitPlume(server, handle);
+
+        // Passengers ride at the body's position. Vanilla moves a rider from the vehicle's own
+        // velocity, which this entity does not have - it teleports each tick - so the position has
+        // to be pushed explicitly or the crew is left behind at the pad.
+        for (Entity passenger : getPassengers()) {
+            passenger.setPos(getX(), getY() + 0.6, getZ());
+            passenger.fallDistance = 0.0F;
+        }
 
         // Outcome resolution is LaunchTracker's job, on the server tick. It has to be, because
         // this method does not run when nobody is nearby - see LaunchTracker's class comment.

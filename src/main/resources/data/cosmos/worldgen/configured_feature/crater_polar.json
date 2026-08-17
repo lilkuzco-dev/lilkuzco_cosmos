@@ -1,0 +1,4 @@
+{
+  "type": "cosmos:crater",
+  "config": { "min_radius": 6, "max_radius": 16, "depth_ratio": 0.26, "rim_ratio": 0.4, "expose_floor": false }
+}

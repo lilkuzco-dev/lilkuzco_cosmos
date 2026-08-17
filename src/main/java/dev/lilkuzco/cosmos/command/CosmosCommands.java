@@ -70,9 +70,109 @@ public final class CosmosCommands {
                                 .then(Commands.argument("propellant", StringArgumentType.word())
                                         .executes(CosmosCommands::testLaunch))))
 
+                .then(Commands.literal("moon").executes(CosmosCommands::moon))
+
+                .then(Commands.literal("moonland")
+                        .then(Commands.argument("propellant_kg", DoubleArgumentType.doubleArg(0))
+                                .executes(CosmosCommands::moonLand)))
+
                 .then(Commands.literal("deorbit")
                         .then(Commands.argument("id", StringArgumentType.greedyString())
                                 .executes(CosmosCommands::deorbit))));
+    }
+
+    /**
+     * Everything about the Moon that can be proved from a headless server.
+     *
+     * <p>Exists because the Phase B claims are all server-side facts - does the dimension exist,
+     * is kinetics flying it as vacuum at 0.165 g, does the terrain actually generate - and none of
+     * them need a client. It samples real columns, which forces generation rather than reporting
+     * that a JSON file is present.
+     */
+    private static int moon(CommandContext<CommandSourceStack> ctx) {
+        CommandSourceStack source = ctx.getSource();
+        var server = source.getServer();
+        var moon = server.getLevel(dev.lilkuzco.cosmos.moon.MoonDimension.MOON);
+        if (moon == null) {
+            source.sendFailure(Component.literal(
+                    "no cosmos:moon dimension in this world - it predates the mod"));
+            return 0;
+        }
+        line(source, "dimension: %s, %d chunks loaded",
+                moon.dimension().identifier(), moon.getChunkSource().getLoadedChunksCount());
+
+        KineticsService kinetics = KineticsMod.service();
+        if (kinetics == null) {
+            source.sendFailure(Component.literal("kinetics service unavailable"));
+            return 0;
+        }
+        var env = kinetics.environmentOf(moon.dimension());
+        if (env == null) {
+            source.sendFailure(Component.literal(
+                    "the Moon is NOT registered with kinetics - it has overworld physics"));
+            return 0;
+        }
+        line(source, "kinetics: gravity %.4f m/s^2 (%.4f g), atmosphere %s",
+                env.gravity(), env.gravityScalar(),
+                env.atmosphere().isPresent() ? "PRESENT (wrong)" : "vacuum");
+        line(source, "drag on a 20 m2 canopy at 200 m/s, 50 m up: %.3f Pa",
+                env.atmosphere().dynamicPressure(200.0, 50.0));
+
+        // Sample real columns. This GENERATES them, which is the only honest proof.
+        int[][] spots = {{0, 0}, {512, 512}, {-2048, 1024}, {6000, -6000}};
+        java.util.Map<String, Integer> surfaces = new java.util.LinkedHashMap<>();
+        int lowest = Integer.MAX_VALUE;
+        int highest = Integer.MIN_VALUE;
+        for (int[] spot : spots) {
+            // GENERATE the chunk, do not merely ask about it. The first version of this called
+            // getHeightmapPos straight away and every sample came back void_air at the world
+            // floor - not because the terrain was empty but because it did not exist yet. A
+            // worldgen check that never generates anything reports a broken dimension and a
+            // working one identically.
+            moon.getChunk(spot[0] >> 4, spot[1] >> 4,
+                    net.minecraft.world.level.chunk.status.ChunkStatus.FULL, true);
+            net.minecraft.core.BlockPos top = moon.getHeightmapPos(
+                    net.minecraft.world.level.levelgen.Heightmap.Types.WORLD_SURFACE,
+                    new net.minecraft.core.BlockPos(spot[0], 0, spot[1]));
+            var state = moon.getBlockState(top.below());
+            String name = state.getBlock().getDescriptionId();
+            surfaces.merge(name, 1, Integer::sum);
+            lowest = Math.min(lowest, top.getY());
+            highest = Math.max(highest, top.getY());
+            line(source, "  (%d, %d): surface y=%d, %s over %s", spot[0], spot[1], top.getY(),
+                    name, moon.getBlockState(top.below(4)).getBlock().getDescriptionId());
+        }
+        line(source, "relief across the samples: %d blocks (y %d to %d)",
+                highest - lowest, lowest, highest);
+        line(source, "surface blocks seen: %s", surfaces);
+
+        var biome = moon.getBiome(new net.minecraft.core.BlockPos(0, 80, 0));
+        line(source, "biome at origin: %s", biome.getRegisteredName());
+        line(source, "transits in flight: %d",
+                dev.lilkuzco.cosmos.moon.LunarTransit.inTransit());
+        return 1;
+    }
+
+    /**
+     * Drop a lander onto the real Moon and log the descent.
+     *
+     * <p>Uncrewed on purpose: it proves the physics path - registered dimension, vacuum
+     * environment, real terrain probe, RD6 retro-burn - without needing anyone logged in.
+     */
+    private static int moonLand(CommandContext<CommandSourceStack> ctx) {
+        CommandSourceStack source = ctx.getSource();
+        double propellantKg = DoubleArgumentType.getDouble(ctx, "propellant_kg");
+        String label = propellantKg >= dev.lilkuzco.cosmos.moon.LunarLander.PROPELLANT_KG
+                ? "fuelled" : "starved-" + (int) propellantKg;
+        String id = dev.lilkuzco.cosmos.moon.LunarDescentProbe.drop(source.getServer(),
+                Propellants.KEROSENE, propellantKg, 0.5, 0.5, label);
+        if (id == null) {
+            source.sendFailure(Component.literal(
+                    "could not release a lander - no Moon, or kinetics unavailable"));
+            return 0;
+        }
+        line(source, "released %s with %.0f kg of propellant; watch the log", id, propellantKg);
+        return 1;
     }
 
     // ---- status -----------------------------------------------------------
@@ -228,9 +328,18 @@ public final class CosmosCommands {
         }
 
         BlockPos pos = BlockPos.containing(source.getPosition());
+        // Crewed when the caller is a player and asked for the lunar tier, so the whole Phase B
+        // chain - board, ascend, TLI, coast, descend - is reachable from one command on a
+        // headless server. Uncrewed otherwise, which is the Phase A path unchanged.
+        boolean crewed = tier == RocketTier.LUNAR;
+        java.util.List<net.minecraft.server.level.ServerPlayer> crew =
+                crewed && source.getEntity() instanceof net.minecraft.server.level.ServerPlayer p
+                        ? java.util.List.of(p) : java.util.List.of();
+
         var rocket = dev.lilkuzco.cosmos.rocket.RocketEntity.launch(source.getLevel(), pos, tier,
                 propellant, tier.fuelCapacityKg(),
-                dev.lilkuzco.cosmos.satellite.SatellitePayload.RECON,
+                crewed ? null : dev.lilkuzco.cosmos.satellite.SatellitePayload.RECON,
+                crewed, crew,
                 source.getLevel().getBlockState(pos));
         if (rocket == null) {
             source.sendFailure(Component.literal("launch failed to create a rocket entity"));

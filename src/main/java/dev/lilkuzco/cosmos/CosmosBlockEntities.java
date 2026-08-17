@@ -1,6 +1,8 @@
 package dev.lilkuzco.cosmos;
 
+import dev.lilkuzco.cosmos.pad.FuelTankBlock;
 import dev.lilkuzco.cosmos.pad.LaunchPadBlockEntity;
+import net.fabricmc.fabric.api.transfer.v1.fluid.FluidStorage;
 import dev.lilkuzco.cosmos.satellite.SatelliteConsoleBlockEntity;
 import net.minecraft.core.Registry;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -19,7 +21,21 @@ public final class CosmosBlockEntities {
 					new BlockEntityType<>(SatelliteConsoleBlockEntity::new,
 							Set.of(CosmosBlocks.SATELLITE_CONSOLE)));
 
+	/**
+	 * Expose the launch pad's propellant reservoir to anything that moves fluid.
+	 *
+	 * <p>This one line is what lets crude_empire's oil pipes fuel a rocket without either mod
+	 * naming the other: both speak Fabric's transfer API, so the coupling is to Fabric API, which
+	 * cosmos already depends on. The tank block is registered too, so a 44-tank lunar pad presents
+	 * its whole ring as connection surface rather than one square in the middle.
+	 */
 	public static void register() {
+		FluidStorage.SIDED.registerForBlockEntity(
+				(pad, direction) -> pad.tank(), LAUNCH_PAD);
+		FluidStorage.SIDED.registerForBlocks((level, pos, state, entity, direction) -> {
+			LaunchPadBlockEntity pad = FuelTankBlock.controllerFor(level, pos);
+			return pad == null ? null : pad.tank();
+		}, CosmosBlocks.FUEL_TANK);
 	}
 
 	private CosmosBlockEntities() {

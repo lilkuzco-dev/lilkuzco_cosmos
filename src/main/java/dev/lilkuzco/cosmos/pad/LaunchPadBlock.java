@@ -62,4 +62,25 @@ public class LaunchPadBlock extends BaseEntityBlock {
         }
         return InteractionResult.CONSUME;
     }
+
+    /**
+     * A propellant bucket poured straight into the pad.
+     *
+     * <p>The by-hand path, for the first sounding rocket before there is any industry. It is
+     * deliberately not the only path - {@code FluidStorage.SIDED} is registered on this block, so
+     * anything that moves fluid can fill a pad, and for the lunar vehicle's 1,428 buckets it had
+     * better.
+     */
+    @Override
+    protected InteractionResult useItemOn(net.minecraft.world.item.ItemStack stack,
+                                          BlockState state, Level level, BlockPos pos,
+                                          Player player, net.minecraft.world.InteractionHand hand,
+                                          BlockHitResult hit) {
+        if (level.getBlockEntity(pos) instanceof LaunchPadBlockEntity pad
+                && net.fabricmc.fabric.api.transfer.v1.fluid.FluidStorageUtil
+                        .interactWithFluidStorage(pad.tank(), player, hand)) {
+            return InteractionResult.SUCCESS;
+        }
+        return super.useItemOn(stack, state, level, pos, player, hand, hit);
+    }
 }

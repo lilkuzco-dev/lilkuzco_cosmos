@@ -1,0 +1,17 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "HDH",
+    "HTH",
+    "HHH"
+  ],
+  "key": {
+    "H": "cosmos:rocket_heavy",
+    "D": "minecraft:netherite_block",
+    "T": "cosmos:fuel_tank"
+  },
+  "result": {
+    "id": "cosmos:rocket_lunar"
+  }
+}

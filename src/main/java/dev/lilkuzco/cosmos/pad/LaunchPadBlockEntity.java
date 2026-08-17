@@ -76,8 +76,9 @@ public class LaunchPadBlockEntity extends BaseContainerBlockEntity {
 
     private NonNullList<ItemStack> items = NonNullList.withSize(CONTAINER_SIZE, ItemStack.EMPTY);
 
-    private int fuelMb;
-    private String propellantId = Propellants.CRUDE.id();
+    /** Propellant lives here, as a real fluid storage that pipes and buckets can both reach. */
+    private final PropellantTank tank = new PropellantTank(this);
+
     private int countdown = -1;
     private int status = STATUS_IDLE;
     private int lastTwrTimes100;
@@ -113,7 +114,8 @@ public class LaunchPadBlockEntity extends BaseContainerBlockEntity {
     public boolean canPlaceItem(int slot, ItemStack stack) {
         return switch (slot) {
             case SLOT_ROCKET -> CosmosItems.tierOf(stack) != null;
-            case SLOT_PAYLOAD -> CosmosItems.payloadOf(stack) != null;
+            case SLOT_PAYLOAD -> CosmosItems.payloadOf(stack) != null
+                    || CosmosItems.isLander(stack);
             default -> false;
         };
     }
@@ -125,8 +127,7 @@ public class LaunchPadBlockEntity extends BaseContainerBlockEntity {
         super.loadAdditional(input);
         this.items = NonNullList.withSize(CONTAINER_SIZE, ItemStack.EMPTY);
         ContainerHelper.loadAllItems(input, this.items);
-        this.fuelMb = input.getIntOr("fuel_mb", 0);
-        this.propellantId = input.getStringOr("propellant", Propellants.CRUDE.id());
+        this.tank.load(input);
         this.countdown = input.getIntOr("countdown", -1);
     }
 
@@ -134,23 +135,28 @@ public class LaunchPadBlockEntity extends BaseContainerBlockEntity {
     protected void saveAdditional(ValueOutput output) {
         super.saveAdditional(output);
         ContainerHelper.saveAllItems(output, this.items);
-        output.putInt("fuel_mb", fuelMb);
-        output.putString("propellant", propellantId);
+        this.tank.save(output);
         output.putInt("countdown", countdown);
     }
 
     // ---- state ------------------------------------------------------------
 
-    public int fuelMb() { return fuelMb; }
+    /** The storage pipes and buckets fill. Exposed for {@code FluidStorage.SIDED}. */
+    public PropellantTank tank() { return tank; }
+
+    /** The tier whose apron ring defines this pad's reservoir - the slotted one, else the largest. */
+    public RocketTier reservoirTier() {
+        RocketTier tier = selectedTier();
+        return tier == null ? RocketTier.LADDER.get(RocketTier.LADDER.size() - 1) : tier;
+    }
+
+    public int fuelMb() { return tank.millibuckets(); }
 
     public int capacityMb() { return lastCapacityMb; }
 
-    public double fuelKg() { return fuelMb / 1000.0 * KG_PER_BUCKET; }
+    public double fuelKg() { return fuelMb() / 1000.0 * KG_PER_BUCKET; }
 
-    public Propellant propellant() {
-        Propellant p = Propellants.byId(propellantId);
-        return p == null ? Propellants.CRUDE : p;
-    }
+    public Propellant propellant() { return tank.grade(); }
 
     public int status() { return status; }
 
@@ -160,23 +166,6 @@ public class LaunchPadBlockEntity extends BaseContainerBlockEntity {
 
     public SatellitePayload selectedPayload() {
         return CosmosItems.payloadOf(items.get(SLOT_PAYLOAD));
-    }
-
-    /**
-     * Accept propellant from a bucket.
-     *
-     * <p>Mixing grades is refused rather than averaged. A tank of half crude and half kerosene has
-     * no honest Isp, and picking one would either flatter or cheat the player.
-     */
-    public boolean acceptFuel(Propellant grade, int amountMb) {
-        if (countdown >= 0) return false;
-        if (fuelMb > 0 && !grade.id().equals(propellantId)) return false;
-        int capacity = computeCapacity();
-        if (fuelMb >= capacity) return false;
-        this.propellantId = grade.id();
-        this.fuelMb = Math.min(capacity, fuelMb + amountMb);
-        setChanged();
-        return true;
     }
 
     public boolean beginCountdown() {
@@ -193,10 +182,18 @@ public class LaunchPadBlockEntity extends BaseContainerBlockEntity {
         setChanged();
     }
 
+    /**
+     * Reservoir size: the base plus every tank standing beside the apron.
+     *
+     * <p>Measured against the largest tier the pad's ring could serve rather than the rocket
+     * currently slotted, because <b>a player fuels before they assemble</b>. Sizing this off the
+     * slotted rocket meant an empty pad reported the base capacity, so a pipeline filled sixteen
+     * buckets and stopped - and the tanks the player had built did nothing until a rocket was
+     * already in the slot.
+     */
     private int computeCapacity() {
-        RocketTier tier = selectedTier();
-        if (level == null || tier == null) return BASE_CAPACITY_MB;
-        int tanks = PadStructure.connectedTanks(level, worldPosition, tier).size();
+        if (level == null) return BASE_CAPACITY_MB;
+        int tanks = PadStructure.connectedTanks(level, worldPosition, reservoirTier()).size();
         return BASE_CAPACITY_MB + tanks * FuelTankBlock.CAPACITY_PER_TANK_MB;
     }
 
@@ -244,15 +241,15 @@ public class LaunchPadBlockEntity extends BaseContainerBlockEntity {
     private void evaluate(Level level) {
         if (countdown >= 0) { status = STATUS_COUNTDOWN; return; }
 
-        RocketTier tier = selectedTier();
-        if (tier == null) { status = STATUS_NO_ROCKET; lastCapacityMb = BASE_CAPACITY_MB; return; }
-
         lastCapacityMb = computeCapacity();
+
+        RocketTier tier = selectedTier();
+        if (tier == null) { status = STATUS_NO_ROCKET; return; }
 
         PadStructure.Check check = PadStructure.check(level, worldPosition, tier);
         if (!check.valid()) { status = STATUS_BAD_STRUCTURE; return; }
 
-        if (fuelMb <= 0) { status = STATUS_NO_FUEL; return; }
+        if (tank.isEmpty()) { status = STATUS_NO_FUEL; return; }
 
         KineticsService kinetics = KineticsMod.service();
         if (kinetics == null) { status = STATUS_BAD_STRUCTURE; return; }
@@ -280,8 +277,15 @@ public class LaunchPadBlockEntity extends BaseContainerBlockEntity {
             return;
         }
 
+        // Crew: anyone standing on the apron when the count reaches zero, and only for a flight
+        // with a lander aboard. A countdown you can walk away from is what makes the countdown a
+        // decision rather than a delay, and a satellite launch should never take passengers.
+        boolean crewed = CosmosItems.isLander(items.get(SLOT_PAYLOAD));
+        java.util.List<net.minecraft.server.level.ServerPlayer> crew =
+                crewed ? PadStructure.playersOnPad(server, pos, tier) : java.util.List.of();
+
         RocketEntity rocket = RocketEntity.launch(server, pos, tier, propellant(), fuelKg(),
-                payload, this.getBlockState());
+                payload, crewed, crew, this.getBlockState());
         if (rocket == null) {
             Cosmos.LOG.error("ignition failed to create a rocket entity at {}", pos);
             return;
@@ -290,7 +294,7 @@ public class LaunchPadBlockEntity extends BaseContainerBlockEntity {
         // Consume everything the launch used. A rocket is not reusable in Phase A.
         items.set(SLOT_ROCKET, ItemStack.EMPTY);
         items.set(SLOT_PAYLOAD, ItemStack.EMPTY);
-        fuelMb = 0;
+        tank.empty();
         countdown = -1;
         setChanged();
 
@@ -306,7 +310,7 @@ public class LaunchPadBlockEntity extends BaseContainerBlockEntity {
             return switch (index) {
                 case 0 -> status;
                 case 1 -> Math.max(countdown, 0);
-                case 2 -> fuelMb;
+                case 2 -> tank.millibuckets();
                 case 3 -> lastCapacityMb;
                 case 4 -> lastTwrTimes100;
                 case 5 -> lastBudgetPercent;

@@ -1,9 +1,11 @@
 package dev.lilkuzco.cosmos.client;
 
+import dev.lilkuzco.cosmos.CosmosEntities;
 import dev.lilkuzco.cosmos.CosmosMenus;
 import dev.lilkuzco.cosmos.satellite.CosmosNet;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
+import net.fabricmc.fabric.api.client.rendering.v1.EntityRendererRegistry;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.MenuScreens;
 
@@ -17,11 +19,19 @@ public final class CosmosClient implements ClientModInitializer {
 	public void onInitializeClient() {
 		MenuScreens.register(CosmosMenus.LAUNCH_PAD, LaunchPadScreen::new);
 
-		// No bespoke entity renderers in Phase A. Minecraft 26.2 reworked entity rendering onto
-		// a submit-node pipeline that wants a real model layer, and a rocket model is Phase B
-		// work rather than something to guess at here. What a player sees today is the flame and
-		// smoke plume the server emits, the countdown, and the camera shake - which is most of
-		// what a launch actually is. Stated as a gap rather than faked.
+		// No bespoke entity MODELS in Phase A. Minecraft 26.2 reworked entity rendering onto a
+		// submit-node pipeline that wants a real model layer, and a rocket model is Phase B work
+		// rather than something to guess at here. What a player sees today is the flame and smoke
+		// plume the server emits, the countdown, and the camera shake - which is most of what a
+		// launch actually is.
+		//
+		// A renderer must still be REGISTERED for every entity type, model or not. Skipping the
+		// registration does not yield an invisible rocket; EntityRenderDispatcher.getRenderer
+		// returns null and LevelExtractor.isEntityVisible dereferences it on the render thread,
+		// crashing the client the instant the vehicle enters view. That is exactly what happened
+		// on the first live ignition. EntityRendererCoverageTest now guards this.
+		EntityRendererRegistry.register(CosmosEntities.ROCKET, InvisibleEntityRenderer::new);
+		EntityRendererRegistry.register(CosmosEntities.CAPSULE, InvisibleEntityRenderer::new);
 
 		ClientPlayNetworking.registerGlobalReceiver(CosmosNet.PlanetariumS2C.TYPE,
 				(payload, context) -> context.client().execute(() -> {

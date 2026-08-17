@@ -46,12 +46,25 @@ echo "server up."
 for cmd in "$@"; do
 	echo ">> $cmd"
 	echo "$cmd" >&3
-	# Commands here are synchronous and can be long (a survey generates chunks);
-	# wait for the server to go quiet rather than guessing a duration.
+	# Commands here are synchronous and can be long (a survey generates chunks; a lunar descent
+	# takes a hundred seconds of flight), so wait for the server to go quiet rather than guessing
+	# a duration.
+	#
+	# QUIET MEANS EIGHT CONSECUTIVE SAMPLES, not one. Gradle's output is buffered, so a single
+	# 2-second sample can find the file unchanged while the server is still working - which is
+	# exactly what happened: two lunar descents were both cut off in mid-air and the run reported
+	# no failure, because "the log stopped growing" and "the command finished" had been treated as
+	# the same fact.
 	last_size=-1
+	quiet=0
 	for _ in $(seq 1 900); do
 		size=$(wc -c < "$LOG")
-		if [ "$size" = "$last_size" ]; then break; fi
+		if [ "$size" = "$last_size" ]; then
+			quiet=$((quiet + 1))
+			if [ "$quiet" -ge 8 ]; then break; fi
+		else
+			quiet=0
+		fi
 		last_size=$size
 		sleep 2
 	done

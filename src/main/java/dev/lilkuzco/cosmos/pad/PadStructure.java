@@ -90,6 +90,26 @@ public final class PadStructure {
         return null;
     }
 
+    /**
+     * Players standing on the apron, i.e. the crew.
+     *
+     * <p>The volume checked is exactly the volume the structure check already demands be clear -
+     * the apron and the airspace above it - so "somewhere the rocket is about to be" and
+     * "somewhere you become crew" are the same place. There is no seat to click and no confirm
+     * dialog: the countdown is the confirmation, and standing under a rocket while it counts is
+     * an unambiguous statement of intent in either direction.
+     */
+    public static java.util.List<net.minecraft.server.level.ServerPlayer> playersOnPad(
+            net.minecraft.server.level.ServerLevel level, BlockPos controller, RocketTier tier) {
+        int radius = tier.padRadius();
+        net.minecraft.world.phys.AABB volume = new net.minecraft.world.phys.AABB(
+                controller.getX() - radius, controller.getY(), controller.getZ() - radius,
+                controller.getX() + radius + 1, controller.getY() + tier.padHeight() + 1,
+                controller.getZ() + radius + 1);
+        return level.getEntitiesOfClass(net.minecraft.server.level.ServerPlayer.class, volume,
+                player -> !player.isSpectator());
+    }
+
     /** Fuel tanks feeding this pad: any tank orthogonally touching the apron. */
     public static List<BlockPos> connectedTanks(Level level, BlockPos controller,
                                                 RocketTier tier) {

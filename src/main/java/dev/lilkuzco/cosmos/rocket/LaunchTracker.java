@@ -40,7 +40,9 @@ public final class LaunchTracker {
 
     /** What cosmos needs to remember about a launch until it resolves. */
     private record Pending(String bodyId, RocketTier tier, SatellitePayload payload,
-                           BlockPos pad, double ignitedAt) {}
+                           BlockPos pad, double ignitedAt, boolean crewed,
+                           dev.lilkuzco.cosmos.propellant.Propellant propellant,
+                           java.util.UUID crew) {}
 
     // Insertion-ordered so simultaneous launches resolve in the order they lit.
     private static final Map<String, Pending> PENDING = new LinkedHashMap<>();
@@ -56,8 +58,11 @@ public final class LaunchTracker {
 
     /** Record a launch. Called at ignition. */
     public static void track(String bodyId, RocketTier tier, SatellitePayload payload,
-                             BlockPos pad, double worldTime) {
-        PENDING.put(bodyId, new Pending(bodyId, tier, payload, pad, worldTime));
+                             BlockPos pad, double worldTime, boolean crewed,
+                             dev.lilkuzco.cosmos.propellant.Propellant propellant,
+                             net.minecraft.server.level.ServerPlayer crew) {
+        PENDING.put(bodyId, new Pending(bodyId, tier, payload, pad, worldTime, crewed,
+                propellant, crew == null ? null : crew.getUUID()));
     }
 
     public static int pendingCount() { return PENDING.size(); }
@@ -98,6 +103,11 @@ public final class LaunchTracker {
                                 KineticsService.Handle handle) {
         double achieved = handle.body().achievedDeltaV();
         OrbitalRegistry registry = kinetics.orbits();
+
+        if (pending.crewed()) {
+            resolveCrewed(server, kinetics, pending, handle, achieved);
+            return;
+        }
 
         if (pending.payload() == null) {
             handle.director().markInsertionFailed(e -> { });
@@ -143,6 +153,60 @@ public final class LaunchTracker {
                 satelliteId, String.format("%.0f", result.altitude()),
                 String.format("%.1f", period), String.format("%.1f", achieved),
                 String.format("%.1f", result.requiredDeltaV()));
+    }
+
+    /**
+     * A crewed flight, resolved against the trans-lunar budget rather than the orbital one.
+     *
+     * <p>Three outcomes, and only the arithmetic decides which. Clear the lunar budget and the
+     * transit begins. Reach orbit but not the Moon and the crew comes home in the capsule - the
+     * flight succeeded at being a flight and failed at being a Moon shot, which is a distinction
+     * worth making rather than collapsing into "failed". Fall short of orbit entirely and the
+     * vehicle comes down, with the crew aboard, exactly as an uncrewed one would.
+     */
+    private static void resolveCrewed(MinecraftServer server, KineticsService kinetics,
+                                      Pending pending, KineticsService.Handle handle,
+                                      double achieved) {
+        var k = kinetics.constants();
+        double toOrbit = k.d("orbit.delta_v_to_orbit");
+        double toMoon = toOrbit + k.d("orbit.lunar_transfer_delta_v");
+        var crew = pending.crew() == null ? null : server.getPlayerList().getPlayer(pending.crew());
+
+        if (crew == null) {
+            // Nobody aboard after all - the seat emptied mid-flight. Treat it as an uncrewed
+            // suborbital shot rather than silently discarding the whole launch.
+            handle.director().markInsertionFailed(e -> { });
+            announce(server, Component.translatable("cosmos.launch.suborbital",
+                    String.format("%.0f", achieved)));
+            return;
+        }
+
+        if (achieved >= toMoon) {
+            handle.director().markInserted(e -> { });
+            dev.lilkuzco.cosmos.moon.LunarTransit.begin(crew, pending.propellant(), pending.pad());
+            Cosmos.LOG.info("crewed TLI: {} m/s achieved against a {} m/s trans-lunar budget",
+                    String.format("%.1f", achieved), String.format("%.1f", toMoon));
+            return;
+        }
+
+        handle.director().markInsertionFailed(e -> { });
+        crew.stopRiding();
+        if (achieved >= toOrbit) {
+            crew.sendSystemMessage(Component.translatable("cosmos.launch.crew_short",
+                    String.format("%.0f", achieved), String.format("%.0f", toMoon),
+                    String.format("%.0f", toMoon - achieved)));
+            Cosmos.LOG.info("crewed flight reached orbit at {} m/s but is {} m/s short of the Moon",
+                    String.format("%.1f", achieved), String.format("%.1f", toMoon - achieved));
+        } else {
+            crew.sendSystemMessage(Component.translatable("cosmos.launch.crew_suborbital",
+                    String.format("%.0f", achieved), String.format("%.0f", toOrbit)));
+        }
+        // Put them back on the pad. Phase B has no crewed reentry vehicle, and dropping a player
+        // from the top of a suborbital arc to prove a point would be a worse lesson than an
+        // abort - the delta-v verdict has already been delivered, in numbers.
+        crew.teleportTo(server.getLevel(crew.level().dimension()), pending.pad().getX() + 0.5,
+                pending.pad().getY() + 1.0, pending.pad().getZ() + 0.5, java.util.Set.of(),
+                crew.getYRot(), crew.getXRot(), false);
     }
 
     private static String defaultName(String id, SatellitePayload payload) {

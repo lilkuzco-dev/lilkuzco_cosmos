@@ -1,0 +1,18 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "ISI",
+    "TET",
+    "III"
+  ],
+  "key": {
+    "I": "minecraft:iron_ingot",
+    "S": "cosmos:pressure_suit",
+    "T": "cosmos:oxygen_tank",
+    "E": "minecraft:netherite_ingot"
+  },
+  "result": {
+    "id": "cosmos:lunar_lander"
+  }
+}

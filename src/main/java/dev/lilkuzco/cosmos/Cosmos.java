@@ -37,9 +37,13 @@ public final class Cosmos implements ModInitializer {
         dev.lilkuzco.cosmos.satellite.SatelliteConstellation.register();
         dev.lilkuzco.cosmos.rocket.LaunchTracker.register();
         dev.lilkuzco.cosmos.recovery.RecoveryTracker.register();
+        dev.lilkuzco.cosmos.worldgen.CosmosWorldgen.register();
+        dev.lilkuzco.cosmos.moon.MoonDimension.register();
+        dev.lilkuzco.cosmos.moon.LunarTransit.register();
+        dev.lilkuzco.cosmos.life.LifeSupport.register();
 
         LOG.info("cosmos {} ready: {} rocket tiers, {} propellant grades",
-                "0.1.0-A",
+                "0.1.0-B",
                 dev.lilkuzco.cosmos.rocket.RocketTier.LADDER.size(),
                 dev.lilkuzco.cosmos.propellant.Propellants.LADDER.size());
     }

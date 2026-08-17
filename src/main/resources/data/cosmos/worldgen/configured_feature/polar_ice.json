@@ -1,0 +1,25 @@
+{
+  "_comment": "Ice survives only in permanently shadowed crater floors, so it is placed as shallow discs low in the terrain rather than as a surface sheet. The uniform IntProvider is FLAT in 26.2 - min_inclusive and max_inclusive sit beside `type`, not under a `value` object - and a plain simple_state_provider is all this needs; the rule_based wrapper was a nested provider missing its own `type`, which is two schema mistakes in one field.",
+  "type": "minecraft:disk",
+  "config": {
+    "half_height": 2,
+    "radius": {
+      "type": "minecraft:uniform",
+      "min_inclusive": 2,
+      "max_inclusive": 5
+    },
+    "state_provider": {
+      "type": "minecraft:simple_state_provider",
+      "state": {
+        "Name": "cosmos:lunar_ice"
+      }
+    },
+    "target": {
+      "type": "minecraft:matching_blocks",
+      "blocks": [
+        "cosmos:regolith",
+        "cosmos:mare_basalt"
+      ]
+    }
+  }
+}

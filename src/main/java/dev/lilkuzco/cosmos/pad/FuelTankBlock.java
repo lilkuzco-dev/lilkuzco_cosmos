@@ -36,4 +36,44 @@ public class FuelTankBlock extends Block {
                 net.minecraft.network.chat.Component.translatable("cosmos.tank.use_controller"));
         return InteractionResult.SUCCESS;
     }
+
+    /**
+     * Pour a bucket into the tank you are standing at, not the one controller you must first find.
+     *
+     * <p>The propellant still lives in the controller - this only forwards. Making the player walk
+     * to the middle of a 13x13 apron to empty every bucket would be a chore invented by the
+     * implementation, not by the design.
+     */
+    @Override
+    protected InteractionResult useItemOn(net.minecraft.world.item.ItemStack stack,
+                                          BlockState state, Level level, BlockPos pos,
+                                          Player player, net.minecraft.world.InteractionHand hand,
+                                          BlockHitResult hit) {
+        LaunchPadBlockEntity pad = controllerFor(level, pos);
+        if (pad != null && net.fabricmc.fabric.api.transfer.v1.fluid.FluidStorageUtil
+                .interactWithFluidStorage(pad.tank(), player, hand)) {
+            return InteractionResult.SUCCESS;
+        }
+        return super.useItemOn(stack, state, level, pos, player, hand, hit);
+    }
+
+    /**
+     * The controller this tank feeds, or null.
+     *
+     * <p>Searched outward from the tank rather than cached, because a pad is built and rebuilt and
+     * a stale link is worse than a short scan. Bounded by the largest tier's apron plus its tank
+     * ring, so the cost does not depend on what else is in the world.
+     */
+    public static LaunchPadBlockEntity controllerFor(Level level, BlockPos tank) {
+        int reach = dev.lilkuzco.cosmos.rocket.RocketTier.LADDER.stream()
+                .mapToInt(dev.lilkuzco.cosmos.rocket.RocketTier::padRadius).max().orElse(5) + 1;
+        for (BlockPos pos : BlockPos.betweenClosed(tank.offset(-reach, -1, -reach),
+                tank.offset(reach, 1, reach))) {
+            if (!(level.getBlockEntity(pos) instanceof LaunchPadBlockEntity pad)) continue;
+            if (PadStructure.connectedTanks(level, pos, pad.reservoirTier()).contains(tank)) {
+                return pad;
+            }
+        }
+        return null;
+    }
 }

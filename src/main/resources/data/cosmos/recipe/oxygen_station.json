@@ -1,0 +1,17 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "building",
+  "pattern": [
+    "ITI",
+    "TCT",
+    "III"
+  ],
+  "key": {
+    "I": "minecraft:iron_ingot",
+    "T": "cosmos:oxygen_tank",
+    "C": "minecraft:copper_block"
+  },
+  "result": {
+    "id": "cosmos:oxygen_station"
+  }
+}

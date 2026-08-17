@@ -63,12 +63,63 @@ public final class CosmosBlocks {
                     .lightLevel(state -> 7)
                     .sound(SoundType.METAL));
 
+    // ---- the Moon --------------------------------------------------------
+
+    /**
+     * Regolith. Soft, mineable by hand, and the surface of most of the Moon.
+     *
+     * <p>Gravel-like {@code strength(0.5F)} on purpose: a body with no atmosphere and no water
+     * has nothing to cement its surface, so the top layer is loose dust rather than rock. It
+     * being trivially diggable is also what makes a lunar base a build rather than a quarry.
+     */
+    public static final Block REGOLITH = register(
+            "regolith", Block::new,
+            BlockBehaviour.Properties.of()
+                    .mapColor(MapColor.COLOR_LIGHT_GRAY)
+                    .strength(0.5F)
+                    .sound(SoundType.SAND));
+
+    /** The dark seas. Solidified basalt - proper rock, needs a pickaxe. */
+    public static final Block MARE_BASALT = register(
+            "mare_basalt", Block::new,
+            BlockBehaviour.Properties.of()
+                    .mapColor(MapColor.COLOR_BLACK)
+                    .instrument(NoteBlockInstrument.BASEDRUM)
+                    .requiresCorrectToolForDrops()
+                    .strength(1.4F, 4.2F)
+                    .sound(SoundType.BASALT));
+
+    /** Polar ice, in the permanently shadowed floors of the polar craters. */
+    public static final Block LUNAR_ICE = register(
+            "lunar_ice", Block::new,
+            BlockBehaviour.Properties.of()
+                    .mapColor(MapColor.ICE)
+                    .requiresCorrectToolForDrops()
+                    .strength(0.9F)
+                    .sound(SoundType.GLASS));
+
+    /** Refills a pressure suit while a player stands near it. */
+    public static final Block OXYGEN_STATION = register(
+            "oxygen_station", dev.lilkuzco.cosmos.life.OxygenStationBlock::new,
+            BlockBehaviour.Properties.of()
+                    .mapColor(MapColor.SNOW)
+                    .requiresCorrectToolForDrops()
+                    .strength(3.0F, 6.0F)
+                    .lightLevel(state -> 5)
+                    .sound(SoundType.METAL));
+
     public static void register() {
         CreativeModeTabEvents.modifyOutputEvent(CreativeModeTabs.FUNCTIONAL_BLOCKS).register(out -> {
             out.insertAfter(Items.BEACON, LAUNCH_PAD);
             out.insertAfter(LAUNCH_PAD.asItem(), PAD_FRAME);
             out.insertAfter(PAD_FRAME.asItem(), FUEL_TANK);
             out.insertAfter(FUEL_TANK.asItem(), SATELLITE_CONSOLE);
+            out.insertAfter(SATELLITE_CONSOLE.asItem(), OXYGEN_STATION);
+        });
+        CreativeModeTabEvents.modifyOutputEvent(CreativeModeTabs.NATURAL_BLOCKS).register(out -> {
+            out.insertAfter(Items.GRAVEL, REGOLITH);
+            out.insertAfter(REGOLITH.asItem(), MARE_BASALT);
+            out.insertAfter(MARE_BASALT.asItem(), LUNAR_ICE);
         });
     }
 

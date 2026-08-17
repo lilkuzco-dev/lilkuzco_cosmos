@@ -1,0 +1,19 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "equipment",
+  "pattern": [
+    "GLG",
+    "ICI",
+    "IWI"
+  ],
+  "key": {
+    "G": "minecraft:glass",
+    "L": "minecraft:leather",
+    "I": "minecraft:iron_ingot",
+    "C": "minecraft:copper_ingot",
+    "W": "minecraft:white_wool"
+  },
+  "result": {
+    "id": "cosmos:pressure_suit"
+  }
+}

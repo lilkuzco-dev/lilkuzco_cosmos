@@ -29,6 +29,17 @@ public final class LaunchPipeline {
         this.engineFrame = EngineFrame.of(constants);
     }
 
+    /**
+     * Delta-v to leave for the Moon, as a multiple of the orbital budget.
+     *
+     * <p>Reality: low orbit costs about 9,400 m/s and trans-lunar injection another 3,120 on top,
+     * so the Moon is 1.332x the orbital budget. Cosmos holds that ratio rather than inventing a
+     * number, which puts the lunar budget at 2,970 m/s against kinetics' 2,230 m/s to orbit.
+     *
+     * <p>Only 33% more delta-v — and, through the logarithm, three and a half times the rocket.
+     */
+    public static final double LUNAR_BUDGET_RATIO = 1.332;
+
     /** What the pad readout shows, and what ignition will do. */
     public record Readout(
             boolean canLiftOff,
@@ -95,6 +106,17 @@ public final class LaunchPipeline {
             if (assess(tier, candidate, fuelKg, gravity).reachesOrbit()) return candidate;
         }
         return null;
+    }
+
+    /** Delta-v required to leave for the Moon, m/s. */
+    public double lunarBudget() {
+        return constants.d("orbit.delta_v_to_orbit") * LUNAR_BUDGET_RATIO;
+    }
+
+    /** Whether this fuelled vehicle can make the trans-lunar burn. */
+    public boolean reachesMoon(RocketTier tier, Propellant propellant, double fuelKg,
+                               double gravity) {
+        return assess(tier, propellant, fuelKg, gravity).deltaV() >= lunarBudget();
     }
 
     public Constants constants() { return constants; }

@@ -1,0 +1,6 @@
+{
+  "_comment": "Running out of air. scaling 'when_caused_by_living_non_player' means difficulty does not change it - vacuum is not harder on hard mode, it is just vacuum.",
+  "message_id": "cosmos.asphyxiation",
+  "exhaustion": 0.0,
+  "scaling": "when_caused_by_living_non_player"
+}

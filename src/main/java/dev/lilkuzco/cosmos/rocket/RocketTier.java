@@ -89,7 +89,38 @@ public record RocketTier(
             6.0, 0.35, 10.0, 80000.0, 1.2, 20.0,
             4, 18, 400.0);
 
-    public static final List<RocketTier> LADDER = List.of(SOUNDING, ORBITAL, HEAVY);
+    /**
+     * Tier 4 - the lunar vehicle. 179 tonnes on the pad for a 500 kg lander.
+     *
+     * <p>Sized against the trans-lunar budget rather than the orbital one, and the difference is
+     * the point. Reaching orbit needs 2,230 m/s; leaving for the Moon needs 2,970 - only 33% more
+     * delta-v, but through Tsiolkovsky's logarithm that is <b>four times the vehicle</b>: 42.5
+     * tonnes for the heavy lifter against 179 for this. That is what "a real reason to build big"
+     * means numerically, and none of it was chosen - the masses were solved for against kinetics'
+     * own {@code Propulsion.assess} until the delta-v cleared the budget.
+     *
+     * <p>1,576 buckets of propellant, which is 49 tanks around an 11x11 pad. <b>That is a
+     * pipeline, not a right-click.</b> The pad is a fluid storage precisely so crude_empire's oil
+     * pipes can fill it; hand-pouring a Moon rocket is possible and is not the intended play.
+     *
+     * <table>
+     *   <caption>Ideal delta-v against the 2,970 m/s trans-lunar budget</caption>
+     *   <tr><th>on crude (232 s)</th><th>on kerosene (311 s)</th><th>on cryogenic (450 s)</th></tr>
+     *   <tr><td>2,262 - short</td><td>3,032 - reaches</td><td>4,387</td></tr>
+     * </table>
+     *
+     * <p>It fails on crude by 708 m/s. Nothing gates the Moon on the refinery; the logarithm does.
+     */
+    public static final RocketTier LUNAR = new RocketTier(
+            "cosmos:lunar", "cosmos.rocket.lunar",
+            500.0,
+            List.of(new StageSpec("lunar_first_stage", 17000.0, 127000.0, 3100000.0),
+                    new StageSpec("lunar_second_stage", 3200.0, 24000.0, 480000.0),
+                    new StageSpec("trans_lunar_stage", 800.0, 6600.0, 69000.0)),
+            8.0, 0.35, 8.0, 80000.0, 1.4, 24.0,
+            5, 24, 500.0);
+
+    public static final List<RocketTier> LADDER = List.of(SOUNDING, ORBITAL, HEAVY, LUNAR);
 
     public static RocketTier byId(String id) {
         for (RocketTier t : LADDER) if (t.id().equals(id)) return t;
