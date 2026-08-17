@@ -28,6 +28,7 @@ public final class Cosmos implements ModInitializer {
 
     @Override
     public void onInitialize() {
+        requireKineticsConstants();
         CosmosFluids.register();
         CosmosBlocks.register();
         CosmosItems.register();
@@ -46,8 +47,43 @@ public final class Cosmos implements ModInitializer {
         dev.lilkuzco.cosmos.life.LifeSupport.register();
 
         LOG.info("cosmos {} ready: {} rocket tiers, {} propellant grades",
-                "0.2.1",
+                "0.2.2",
                 dev.lilkuzco.cosmos.rocket.RocketTier.LADDER.size(),
                 dev.lilkuzco.cosmos.propellant.Propellants.LADDER.size());
+    }
+
+    /**
+     * Refuse to start against a kinetics that is missing constants cosmos needs.
+     *
+     * <p><b>A released version is immutable, and this exists because I broke that.</b> Haze's
+     * constants were added to kinetics and committed <em>after</em> 0.1.3 was published, without a
+     * version bump — so 0.1.3 named two different artifacts, and the manifest happily shipped the
+     * one without them beside a cosmos that needed them. The load-compatibility gate could not see
+     * it: cosmos declared {@code kinetics >=0.1.3}, and 0.1.3 was present.
+     *
+     * <p>A version predicate cannot catch a version that changed underneath it. Naming the
+     * constants can. The failure is now at load, loudly, saying exactly which one is missing —
+     * rather than a ConstantsException thrown mid-flight the first time somebody aims at Haze.
+     */
+    private static void requireKineticsConstants() {
+        var constants = dev.lilkuzco.kinetics.constants.Constants.get();
+        java.util.List<String> missing = new java.util.ArrayList<>();
+        for (String required : new String[] {
+                "orbit.delta_v_to_orbit", "orbit.lunar_distance", "orbit.lunar_transfer_delta_v",
+                "orbit.lunar_descent_delta_v", "orbit.haze_distance",
+                "orbit.haze_orbit_insertion_delta_v", "orbit.haze_descent_delta_v",
+                "gravity.dimension_scalars.moon", "gravity.dimension_scalars.haze",
+                "landing.touchdown_speed" }) {
+            try {
+                constants.d(required);
+            } catch (RuntimeException absent) {
+                missing.add(required);
+            }
+        }
+        if (!missing.isEmpty()) {
+            throw new IllegalStateException("this kinetics is missing constants cosmos needs: "
+                    + missing + ". A kinetics version was published and then changed underneath "
+                    + "its own version number; install a newer one.");
+        }
     }
 }
