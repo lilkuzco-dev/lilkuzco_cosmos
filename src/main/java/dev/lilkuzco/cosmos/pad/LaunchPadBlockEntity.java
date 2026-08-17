@@ -284,7 +284,12 @@ public class LaunchPadBlockEntity extends BaseContainerBlockEntity {
         java.util.List<net.minecraft.server.level.ServerPlayer> crew =
                 crewed ? PadStructure.playersOnPad(server, pos, tier) : java.util.List.of();
 
-        RocketEntity rocket = RocketEntity.launch(server, pos, tier, propellant(), fuelKg(),
+        // Only what the vehicle can actually carry. fuelKg() is the whole reservoir, which on a
+        // large pad is many times a small rocket's tankage; buildProfile clamps it, so the flight
+        // was always correct - it was the pad that then threw the remainder away.
+        double loaded = Math.min(fuelKg(), tier.fuelCapacityKg());
+
+        RocketEntity rocket = RocketEntity.launch(server, pos, tier, propellant(), loaded,
                 payload, crewed, crew, this.getBlockState());
         if (rocket == null) {
             Cosmos.LOG.error("ignition failed to create a rocket entity at {}", pos);
@@ -294,7 +299,7 @@ public class LaunchPadBlockEntity extends BaseContainerBlockEntity {
         // Consume everything the launch used. A rocket is not reusable in Phase A.
         items.set(SLOT_ROCKET, ItemStack.EMPTY);
         items.set(SLOT_PAYLOAD, ItemStack.EMPTY);
-        tank.empty();
+        tank.consume(loaded, KG_PER_BUCKET);
         countdown = -1;
         setChanged();
 

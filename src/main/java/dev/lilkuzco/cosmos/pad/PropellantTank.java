@@ -82,6 +82,22 @@ public class PropellantTank extends SingleVariantStorage<FluidVariant> {
 	}
 
 	/**
+	 * Burn what the vehicle actually loaded, and leave the rest in the tanks.
+	 *
+	 * <p>Ignition used to call {@link #empty()}, which <b>annihilated the surplus</b>. A pad ringed
+	 * for a Moon rocket holds 1,040 buckets; an orbital vehicle takes 172 of them, so launching one
+	 * from a big pad destroyed 868 buckets of propellant with no message and no way to notice
+	 * except by counting. The reservoir belongs to the pad, not to the flight.
+	 */
+	public void consume(double kilograms, double kgPerBucket) {
+		if (kilograms <= 0.0 || kgPerBucket <= 0.0) return;
+		long droplets = (long) Math.ceil(kilograms / kgPerBucket * 1000.0) * DROPLETS_PER_MB;
+		amount = Math.max(0L, amount - droplets);
+		if (amount == 0L) variant = FluidVariant.blank();
+		pad.setChanged();
+	}
+
+	/**
 	 * Which propellant grade a fluid counts as, or null if it is not propellant.
 	 *
 	 * <p>Walked best-grade-first so a fluid tagged into two rungs is credited at the higher one.

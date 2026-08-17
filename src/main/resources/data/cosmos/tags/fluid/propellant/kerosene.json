@@ -1,5 +1,18 @@
 {
-  "_comment": "Grade 2 — the campaign's diesel-tier. DELIBERATELY EMPTY: crude_empire v0.1.x has no refinery and no diesel, so there is nothing to put here yet. When its Phase 2 ships, adding one line to this file wires refined fuel into every launch pad in the world. No code changes in either mod, and crude_empire is never touched.",
+  "_comment": "Grade 2 - the campaign's diesel tier. LIT UP by crude_empire 0.3.0, which ships diesel. Both forms are listed: the tag first, so that if crude_empire ever publishes #crude_empire:diesel this rung picks it up automatically, and the fluids themselves second, because today it publishes a tag for crude_oil and none for diesel. Naming another mod's fluid directly is a deviation from how the crude rung is written, taken deliberately rather than by leaving the rung dark. required:false throughout, so a world without crude_empire loads cleanly with an empty grade.",
   "replace": false,
-  "values": []
+  "values": [
+    {
+      "id": "#crude_empire:diesel",
+      "required": false
+    },
+    {
+      "id": "crude_empire:diesel",
+      "required": false
+    },
+    {
+      "id": "crude_empire:flowing_diesel",
+      "required": false
+    }
+  ]
 }

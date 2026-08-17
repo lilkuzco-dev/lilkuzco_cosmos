@@ -145,12 +145,19 @@ tools/verify.sh                         # Phase A and Phase B chains, headless, 
 ./gradlew build                         # -> build/libs/lilkuzco-cosmos-0.1.0-B.jar
 tools/devserver.sh log.txt "cosmos selftest" "cosmos moon"
 tools/devserver.sh log.txt "forceload add 0 0" "cosmos moonland 300" "cosmos moonland 60"
+tools/devserver.sh log.txt "cosmos padtest"     # build a pad, fuel it, launch it
 ```
 
 `tools/verify.sh` flies propellant → launch → insertion → passes → deorbit → reentry → recovery
 against real kinetics with no Minecraft at all, and prints every number. That is possible because
 the launch pipeline is Minecraft-free by construction: a propellant grade is two specific impulses
 and a rocket tier is masses and thrusts.
+
+`cosmos padtest` builds a pad, fills it **through the Fabric fluid API exactly as a crude_empire
+pipe would**, and launches it. It exists because the fuelling path was rewritten wholesale in vB
+and the version it replaced was `acceptFuel` — a method nothing in the game ever called, so no pad
+could be fuelled at all. Proving the replacement works needs a real insertion into a real tank on a
+real block entity. It also caught ignition destroying every drop of surplus propellant.
 
 `cosmos moonland` drops a real lander into the real Moon dimension and logs the descent tick by
 tick. **This is not the same claim as the headless battery** and it earns its keep: the battery

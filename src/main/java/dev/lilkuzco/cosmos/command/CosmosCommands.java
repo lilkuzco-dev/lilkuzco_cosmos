@@ -70,6 +70,8 @@ public final class CosmosCommands {
                                 .then(Commands.argument("propellant", StringArgumentType.word())
                                         .executes(CosmosCommands::testLaunch))))
 
+                .then(Commands.literal("padtest").executes(CosmosCommands::padTest))
+
                 .then(Commands.literal("moon").executes(CosmosCommands::moon))
 
                 .then(Commands.literal("moonland")
@@ -168,6 +170,7 @@ public final class CosmosCommands {
                 dev.lilkuzco.cosmos.moon.LunarTransit.TIME_COMPRESSION);
         line(source, "transits in flight: %d",
                 dev.lilkuzco.cosmos.moon.LunarTransit.inTransit());
+        propellantLadder(source);
         return 1;
     }
 
@@ -191,6 +194,141 @@ public final class CosmosCommands {
         }
         line(source, "released %s with %.0f kg of propellant; watch the log", id, propellantKg);
         return 1;
+    }
+
+    /**
+     * Build a launch pad, fill it through the Fabric fluid API, and read the pad back.
+     *
+     * <p>Exists because the fuelling path was rewritten wholesale in vB and never exercised in a
+     * world. Phase A shipped an {@code acceptFuel} nothing called; proving the replacement works
+     * needs an actual insertion into an actual {@code PropellantTank} on an actual block entity,
+     * not a unit test of the arithmetic around it. This is the transaction a crude_empire pipe
+     * would make, made by hand.
+     */
+    private static int padTest(CommandContext<CommandSourceStack> ctx) {
+        CommandSourceStack source = ctx.getSource();
+        net.minecraft.server.level.ServerLevel level = source.getLevel();
+        BlockPos origin = BlockPos.containing(source.getPosition()).above(2);
+        RocketTier tier = RocketTier.ORBITAL;
+        int r = tier.padRadius();
+
+        // Apron, controller, and a ring of tanks. Clear the airspace so the structure check passes.
+        for (int dx = -r - 1; dx <= r + 1; dx++) {
+            for (int dz = -r - 1; dz <= r + 1; dz++) {
+                boolean ring = Math.abs(dx) == r + 1 || Math.abs(dz) == r + 1;
+                BlockPos at = origin.offset(dx, 0, dz);
+                level.setBlock(at, ring
+                        ? dev.lilkuzco.cosmos.CosmosBlocks.FUEL_TANK.defaultBlockState()
+                        : dev.lilkuzco.cosmos.CosmosBlocks.PAD_FRAME.defaultBlockState(), 3);
+                for (int dy = 1; dy <= tier.padHeight(); dy++) {
+                    level.setBlock(origin.offset(dx, dy, dz),
+                            net.minecraft.world.level.block.Blocks.AIR.defaultBlockState(), 3);
+                }
+            }
+        }
+        level.setBlock(origin, dev.lilkuzco.cosmos.CosmosBlocks.LAUNCH_PAD.defaultBlockState(), 3);
+
+        if (!(level.getBlockEntity(origin)
+                instanceof dev.lilkuzco.cosmos.pad.LaunchPadBlockEntity pad)) {
+            source.sendFailure(Component.literal("no launch pad block entity at " + origin));
+            return 0;
+        }
+        pad.setItem(dev.lilkuzco.cosmos.pad.LaunchPadBlockEntity.SLOT_ROCKET,
+                new net.minecraft.world.item.ItemStack(dev.lilkuzco.cosmos.CosmosItems.ROCKET_ORBITAL));
+        dev.lilkuzco.cosmos.pad.LaunchPadBlockEntity.serverTick(level, origin,
+                level.getBlockState(origin), pad);
+
+        line(source, "pad at (%d, %d, %d): capacity %d mb (%d buckets), status %d",
+                origin.getX(), origin.getY(), origin.getZ(), pad.capacityMb(),
+                pad.capacityMb() / 1000, pad.status());
+
+        // The insertion a pipe would make. Crude oil, through the real Storage API.
+        var fluid = net.fabricmc.fabric.api.transfer.v1.fluid.FluidVariant.of(
+                dev.lilkuzco.cosmos.propellant.Propellants.LADDER.isEmpty()
+                        ? net.minecraft.world.level.material.Fluids.WATER
+                        : resolveTestFluid(level));
+        long want = (long) pad.capacityMb()
+                * dev.lilkuzco.cosmos.pad.PropellantTank.DROPLETS_PER_MB;
+        long moved;
+        try (var tx = net.fabricmc.fabric.api.transfer.v1.transaction.Transaction.openOuter()) {
+            moved = pad.tank().insert(fluid, want, tx);
+            tx.commit();
+        }
+        line(source, "inserted %s: %d of %d droplets accepted -> %d mb, grade %s",
+                fluid.getFluid().builtInRegistryHolder().getRegisteredName(), moved, want,
+                pad.fuelMb(), pad.propellant().id());
+
+        dev.lilkuzco.cosmos.pad.LaunchPadBlockEntity.serverTick(level, origin,
+                level.getBlockState(origin), pad);
+        line(source, "after fuelling: %.0f kg of propellant, status %d (%s)",
+                pad.fuelKg(), pad.status(),
+                pad.status() == dev.lilkuzco.cosmos.pad.LaunchPadBlockEntity.STATUS_READY
+                        ? "READY" : pad.status()
+                        == dev.lilkuzco.cosmos.pad.LaunchPadBlockEntity.STATUS_SHORTFALL
+                        ? "SHORTFALL - fuelled but short of orbit" : "not ready");
+
+        // A second grade must be refused: half crude and half kerosene has no honest Isp.
+        var other = net.fabricmc.fabric.api.transfer.v1.fluid.FluidVariant.of(
+                net.minecraft.world.level.material.Fluids.WATER);
+        long rejected;
+        try (var tx = net.fabricmc.fabric.api.transfer.v1.transaction.Transaction.openOuter()) {
+            rejected = pad.tank().insert(other, 81_000L, tx);
+            tx.abort();
+        }
+        line(source, "water into a propellant tank: %d droplets accepted (must be 0)", rejected);
+
+        // Launch, and check the surplus survives. A pad ringed for a Moon rocket holds far more
+        // than an orbital vehicle takes; ignition used to destroy the difference silently.
+        int before = pad.fuelMb();
+        pad.beginCountdown();
+        for (int i = 0; i <= dev.lilkuzco.cosmos.pad.LaunchPadBlockEntity.COUNTDOWN_TICKS; i++) {
+            dev.lilkuzco.cosmos.pad.LaunchPadBlockEntity.serverTick(level, origin,
+                    level.getBlockState(origin), pad);
+        }
+        int after = pad.fuelMb();
+        double took = (before - after) / 1000.0 * dev.lilkuzco.cosmos.pad.LaunchPadBlockEntity.KG_PER_BUCKET;
+        line(source, "ignition consumed %.0f kg of %.0f loaded; %d mb left in the tanks "
+                        + "(vehicle tankage %.0f kg)",
+                took, before / 1000.0 * dev.lilkuzco.cosmos.pad.LaunchPadBlockEntity.KG_PER_BUCKET,
+                after, tier.fuelCapacityKg());
+        return 1;
+    }
+
+    /** The best propellant fluid actually present in this world, for the pad test. */
+    private static net.minecraft.world.level.material.Fluid resolveTestFluid(
+            net.minecraft.server.level.ServerLevel level) {
+        for (int i = Propellants.LADDER.size() - 1; i >= 0; i--) {
+            var tag = Propellants.tagFor(Propellants.LADDER.get(i));
+            if (tag == null) continue;
+            for (var holder : net.minecraft.core.registries.BuiltInRegistries.FLUID) {
+                if (holder.defaultFluidState().is(tag)) return holder;
+            }
+        }
+        return net.minecraft.world.level.material.Fluids.WATER;
+    }
+
+    /**
+     * Which propellant grades actually have a fluid behind them in THIS world.
+     *
+     * <p>The ladder is a contract cosmos publishes and other mods fill. Whether a rung is lit is
+     * therefore a fact about the installed set, not about cosmos, and the only honest way to state
+     * it is to resolve the tags against the live registry.
+     */
+    private static void propellantLadder(CommandSourceStack source) {
+        for (Propellant grade : Propellants.LADDER) {
+            var tag = Propellants.tagFor(grade);
+            java.util.List<String> fluids = new java.util.ArrayList<>();
+            if (tag != null) {
+                for (var fluid : net.minecraft.core.registries.BuiltInRegistries.FLUID) {
+                    if (fluid.defaultFluidState().is(tag)) {
+                        fluids.add(fluid.builtInRegistryHolder().getRegisteredName());
+                    }
+                }
+            }
+            line(source, "propellant %s (Isp %.0f/%.0f s): %s", grade.id(),
+                    grade.ispSeaLevel(), grade.ispVacuum(),
+                    fluids.isEmpty() ? "DARK - no fluid tagged" : String.join(", ", fluids));
+        }
     }
 
     // ---- status -----------------------------------------------------------
