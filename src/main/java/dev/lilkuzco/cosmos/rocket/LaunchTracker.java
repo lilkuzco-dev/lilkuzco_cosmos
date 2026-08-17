@@ -42,7 +42,8 @@ public final class LaunchTracker {
     private record Pending(String bodyId, RocketTier tier, SatellitePayload payload,
                            BlockPos pad, double ignitedAt, boolean crewed,
                            dev.lilkuzco.cosmos.propellant.Propellant propellant,
-                           java.util.UUID crew) {}
+                           java.util.UUID crew,
+                           dev.lilkuzco.cosmos.moon.Destination destination) {}
 
     // Insertion-ordered so simultaneous launches resolve in the order they lit.
     private static final Map<String, Pending> PENDING = new LinkedHashMap<>();
@@ -60,9 +61,10 @@ public final class LaunchTracker {
     public static void track(String bodyId, RocketTier tier, SatellitePayload payload,
                              BlockPos pad, double worldTime, boolean crewed,
                              dev.lilkuzco.cosmos.propellant.Propellant propellant,
-                             net.minecraft.server.level.ServerPlayer crew) {
+                             net.minecraft.server.level.ServerPlayer crew,
+                             dev.lilkuzco.cosmos.moon.Destination destination) {
         PENDING.put(bodyId, new Pending(bodyId, tier, payload, pad, worldTime, crewed,
-                propellant, crew == null ? null : crew.getUUID()));
+                propellant, crew == null ? null : crew.getUUID(), destination));
     }
 
     public static int pendingCount() { return PENDING.size(); }
@@ -168,8 +170,10 @@ public final class LaunchTracker {
                                       Pending pending, KineticsService.Handle handle,
                                       double achieved) {
         var k = kinetics.constants();
+        var destination = pending.destination() == null
+                ? dev.lilkuzco.cosmos.moon.Destination.MOON : pending.destination();
         double toOrbit = k.d("orbit.delta_v_to_orbit");
-        double toMoon = toOrbit + k.d("orbit.lunar_transfer_delta_v");
+        double toMoon = destination.departureBudget(k);
         var crew = pending.crew() == null ? null : server.getPlayerList().getPlayer(pending.crew());
 
         if (crew == null) {
@@ -183,8 +187,10 @@ public final class LaunchTracker {
 
         if (achieved >= toMoon) {
             handle.director().markInserted(e -> { });
-            dev.lilkuzco.cosmos.moon.LunarTransit.begin(crew, pending.propellant(), pending.pad());
-            Cosmos.LOG.info("crewed TLI: {} m/s achieved against a {} m/s trans-lunar budget",
+            dev.lilkuzco.cosmos.moon.LunarTransit.begin(crew, pending.propellant(), pending.pad(),
+                    destination);
+            Cosmos.LOG.info("crewed injection toward {}: {} m/s against a {} m/s budget",
+                    destination.dimension().identifier(),
                     String.format("%.1f", achieved), String.format("%.1f", toMoon));
             return;
         }

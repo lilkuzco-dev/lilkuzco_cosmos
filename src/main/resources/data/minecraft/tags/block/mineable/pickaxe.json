@@ -1,7 +1,10 @@
 {
   "values": [
+    "cosmos:ammonia_cracker",
+    "cosmos:ammonia_ice",
     "cosmos:electrolyser",
     "cosmos:fuel_tank",
+    "cosmos:haze_bedrock",
     "cosmos:launch_pad",
     "cosmos:lunar_ice",
     "cosmos:mare_basalt",

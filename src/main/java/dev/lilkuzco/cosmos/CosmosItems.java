@@ -137,6 +137,18 @@ public final class CosmosItems {
     public static final Item LUNAR_LANDER = register("lunar_lander",
             props -> new LanderItem(props.stacksTo(1)));
 
+    /**
+     * The entry capsule: a heat shield and two chutes, for the outer moon.
+     *
+     * <p>No engine, and that is the design. Where the Moon charges 444 m/s to land because there
+     * is nothing to brake against, the outer moon's atmosphere does it for free — so the vehicle
+     * that goes there is a blunt body and a canopy, and an engine would be dead weight.
+     *
+     * <p>Which payload sits in the pad decides where the flight goes. You pack for the destination.
+     */
+    public static final Item ENTRY_CAPSULE = register("entry_capsule",
+            props -> new LanderItem(props.stacksTo(1)));
+
     public static final Item ROCKET_LUNAR = register("rocket_lunar",
             props -> new RocketItem(RocketTier.LUNAR, props.stacksTo(1)));
 
@@ -168,9 +180,22 @@ public final class CosmosItems {
         return stack.getItem() instanceof RocketItem rocket ? rocket.tier() : null;
     }
 
-    /** Whether this stack is a crewed lunar lander. */
+    /** Whether this stack is a crewed vehicle of any kind. */
     public static boolean isLander(ItemStack stack) {
         return stack.getItem() instanceof LanderItem;
+    }
+
+    /**
+     * Where this payload is packed to go.
+     *
+     * <p>The item is the itinerary. A lander has engines and no heat shield, so it can only go
+     * somewhere airless; a capsule has a heat shield and no engines, so it can only go somewhere
+     * with air. Neither can do the other's job, which is why one item answers the question.
+     */
+    public static dev.lilkuzco.cosmos.moon.Destination destinationOf(ItemStack stack) {
+        if (stack.getItem() == ENTRY_CAPSULE) return dev.lilkuzco.cosmos.moon.Destination.HAZE;
+        if (stack.getItem() == LUNAR_LANDER) return dev.lilkuzco.cosmos.moon.Destination.MOON;
+        return null;
     }
 
     /** The payload an item represents, or null if it is not a payload. */
@@ -187,7 +212,8 @@ public final class CosmosItems {
             out.insertAfter(ROCKET_LUNAR, SATELLITE_RECON);
             out.insertAfter(SATELLITE_RECON, SATELLITE_COMMS);
             out.insertAfter(SATELLITE_COMMS, LUNAR_LANDER);
-            out.insertAfter(LUNAR_LANDER, PRESSURE_SUIT);
+            out.insertAfter(LUNAR_LANDER, ENTRY_CAPSULE);
+            out.insertAfter(ENTRY_CAPSULE, PRESSURE_SUIT);
             out.insertAfter(PRESSURE_SUIT, OXYGEN_TANK);
         });
     }

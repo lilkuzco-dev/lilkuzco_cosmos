@@ -1,0 +1,18 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "ISI",
+    "WEW",
+    "III"
+  ],
+  "key": {
+    "I": "minecraft:iron_ingot",
+    "S": "cosmos:pressure_suit",
+    "W": "minecraft:white_wool",
+    "E": "minecraft:netherite_ingot"
+  },
+  "result": {
+    "id": "cosmos:entry_capsule"
+  }
+}

@@ -281,6 +281,8 @@ public class LaunchPadBlockEntity extends BaseContainerBlockEntity {
         // with a lander aboard. A countdown you can walk away from is what makes the countdown a
         // decision rather than a delay, and a satellite launch should never take passengers.
         boolean crewed = CosmosItems.isLander(items.get(SLOT_PAYLOAD));
+        dev.lilkuzco.cosmos.moon.Destination destination =
+                CosmosItems.destinationOf(items.get(SLOT_PAYLOAD));
         java.util.List<net.minecraft.server.level.ServerPlayer> crew =
                 crewed ? PadStructure.playersOnPad(server, pos, tier) : java.util.List.of();
 
@@ -290,7 +292,7 @@ public class LaunchPadBlockEntity extends BaseContainerBlockEntity {
         double loaded = Math.min(fuelKg(), tier.fuelCapacityKg());
 
         RocketEntity rocket = RocketEntity.launch(server, pos, tier, propellant(), loaded,
-                payload, crewed, crew, this.getBlockState());
+                payload, crewed, crew, destination, this.getBlockState());
         if (rocket == null) {
             Cosmos.LOG.error("ignition failed to create a rocket entity at {}", pos);
             return;

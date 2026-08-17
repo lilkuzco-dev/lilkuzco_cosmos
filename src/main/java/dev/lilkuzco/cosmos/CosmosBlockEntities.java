@@ -19,7 +19,8 @@ public final class CosmosBlockEntities {
 	public static final BlockEntityType<dev.lilkuzco.cosmos.isru.IsruBlockEntity> ISRU =
 			Registry.register(BuiltInRegistries.BLOCK_ENTITY_TYPE, Cosmos.id("isru"),
 					new BlockEntityType<>(dev.lilkuzco.cosmos.isru.IsruBlockEntity::new,
-							Set.of(CosmosBlocks.ELECTROLYSER, CosmosBlocks.REGOLITH_KILN)));
+							Set.of(CosmosBlocks.ELECTROLYSER, CosmosBlocks.REGOLITH_KILN,
+									CosmosBlocks.AMMONIA_CRACKER)));
 
 	public static final BlockEntityType<SatelliteConsoleBlockEntity> SATELLITE_CONSOLE =
 			Registry.register(BuiltInRegistries.BLOCK_ENTITY_TYPE, Cosmos.id("satellite_console"),

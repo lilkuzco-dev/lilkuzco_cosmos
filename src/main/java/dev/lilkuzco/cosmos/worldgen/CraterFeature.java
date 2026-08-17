@@ -73,8 +73,8 @@ public class CraterFeature extends Feature<CraterConfiguration> {
 		double sin = Math.sin(angle);
 
 		int reach = Math.min(MAX_WRITE_REACH, (int) Math.ceil(radius * 1.35));
-		BlockState regolith = CosmosBlocks.REGOLITH.defaultBlockState();
-		BlockState basalt = CosmosBlocks.MARE_BASALT.defaultBlockState();
+		BlockState regolith = config.surface();
+		BlockState basalt = config.floor();
 		BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
 
 		for (int dx = -reach; dx <= reach; dx++) {

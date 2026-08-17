@@ -1,0 +1,25 @@
+{
+  "_comment": "Ammonia ice, in shelves on the low shelf terrain. Ammonia freezes at 195 K and this body sits near 94 K, so it is stable at the surface here in a way water ice on the Moon only manages in permanent shadow. Flat IntProvider, per 26.2.",
+  "type": "minecraft:disk",
+  "config": {
+    "half_height": 2,
+    "radius": {
+      "type": "minecraft:uniform",
+      "min_inclusive": 3,
+      "max_inclusive": 6
+    },
+    "state_provider": {
+      "type": "minecraft:simple_state_provider",
+      "state": {
+        "Name": "cosmos:ammonia_ice"
+      }
+    },
+    "target": {
+      "type": "minecraft:matching_blocks",
+      "blocks": [
+        "cosmos:tholin_sand",
+        "cosmos:haze_bedrock"
+      ]
+    }
+  }
+}

@@ -63,7 +63,11 @@ public final class LunarEconomy {
 		/** The surface itself. Effectively unbounded, and rate-limited rather than finite. */
 		REGOLITH,
 		/** Baked regolith: the building material a base makes out of the ground it stands on. */
-		SINTER
+		SINTER,
+		/** Ammonia ice, on the outer moon. Stable at the surface there, unlike lunar water. */
+		AMMONIA,
+		/** Nitrogen: a habitat buffer gas, and most of what ammonia turns out to be. */
+		NITROGEN
 	}
 
 	/** What an installation does. Every process balances mass exactly. */
@@ -75,7 +79,16 @@ public final class LunarEconomy {
 		/** Hydrogen and oxygen to propellant at the 6:1 mixture ratio engines actually use. */
 		MIX,
 		/** Regolith to oxygen and sinter. The mundane one, and the one that works anywhere. */
-		BAKE
+		BAKE,
+		/**
+		 * Ammonia to nitrogen and hydrogen, at ammonia's real mass fractions.
+		 *
+		 * <p>The outer moon's answer to lunar ice, and a deliberately lopsided one: it yields fuel
+		 * and buffer gas but <b>no oxygen at all</b>. A base there can make propellant it cannot
+		 * burn and gas it cannot breathe. That is the trade - the Moon gives you both halves and
+		 * runs out; the outer moon gives you one half and does not.
+		 */
+		CRACK
 	}
 
 	/**
@@ -117,6 +130,17 @@ public final class LunarEconomy {
      * The RS-25 runs 6.03. This one number is what creates the oxygen surplus below.
      */
     public static final double MIXTURE_RATIO = 6.0;
+
+	/**
+	 * Hydrogen's share of ammonia by mass: 3.024 / 17.031.
+	 *
+	 * <p>NH3 is 82.24% nitrogen and 17.76% hydrogen — a far richer hydrogen source per kilogram
+	 * than water's 11.19%, which is exactly why ammonia is the outer moon's advantage.
+	 */
+	public static final double AMMONIA_HYDROGEN_FRACTION = 3.024 / 17.031;
+
+	/** Nitrogen's share of ammonia by mass. The remainder, exactly. */
+	public static final double AMMONIA_NITROGEN_FRACTION = 1.0 - AMMONIA_HYDROGEN_FRACTION;
 
 	/**
 	 * Oxygen recoverable from regolith, as a fraction of the mass processed.
@@ -304,6 +328,15 @@ public final class LunarEconomy {
 				depositStock[deposit] -= take;
 				store[Resource.ICE.ordinal()] += take;
 				minedKg += take;
+			} else if (installationProcess[i] == Process.CRACK) {
+				int deposit = relocateIfExhausted(i);
+				if (deposit < 0) continue;
+				double take = Math.min(rate(Process.CRACK), depositStock[deposit]);
+				take = Math.min(take, space(Resource.AMMONIA));
+				if (take <= 0.0) continue;
+				depositStock[deposit] -= take;
+				store[Resource.AMMONIA.ordinal()] += take;
+				minedKg += take;
 			} else if (installationProcess[i] == Process.BAKE) {
 				// Regolith is not a deposit. There is no shortage of ground, only of time.
 				double take = Math.min(rate(Process.BAKE), space(Resource.REGOLITH));
@@ -372,6 +405,13 @@ public final class LunarEconomy {
 					store[Resource.OXYGEN.ordinal()] -= oxidiser;
 					store[Resource.HYDROLOX.ordinal()] += fuel + oxidiser;
 					processedKg += fuel + oxidiser;
+				}
+				case CRACK -> {
+					double feed = Math.min(rate, store[Resource.AMMONIA.ordinal()]);
+					if (feed <= 0.0) break;
+					convert(Resource.AMMONIA, feed, Map.of(
+							Resource.HYDROGEN, AMMONIA_HYDROGEN_FRACTION,
+							Resource.NITROGEN, AMMONIA_NITROGEN_FRACTION));
 				}
 				case BAKE -> {
 					double feed = Math.min(rate, store[Resource.REGOLITH.ordinal()]);

@@ -1,0 +1,17 @@
+{
+  "type": "cosmos:crater",
+  "config": {
+    "min_radius": 4,
+    "max_radius": 10,
+    "depth_ratio": 0.14,
+    "rim_ratio": 0.2,
+    "expose_floor": false,
+    "surface": {
+      "Name": "cosmos:tholin_sand"
+    },
+    "floor": {
+      "Name": "cosmos:haze_bedrock"
+    }
+  },
+  "_comment": "Outer-moon craters. Shallower and blunter than the Moon's because this body has an atmosphere, and an atmosphere erodes rims. Radius still bounded by the one-chunk write limit - see CraterFeature.MAX_LEGAL_RADIUS."
+}

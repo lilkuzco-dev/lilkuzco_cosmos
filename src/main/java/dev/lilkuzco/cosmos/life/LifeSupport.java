@@ -70,17 +70,15 @@ public final class LifeSupport {
     /**
      * Whether a dimension has breathable air.
      *
-     * <p>Asked of kinetics rather than answered here. A dimension kinetics knows as vacuum has no
-     * drag, no lift, useless parachutes AND no air to breathe - one fact, one source. An
-     * unregistered dimension is treated as breathable, so a world without cosmos' dimensions
-     * registered never suffocates anybody.
+     * <p><b>Asked of cosmos, not of kinetics, and that changed with the second destination.</b>
+     * The Moon taught the wrong lesson: it is airless, so "has an atmosphere" and "can be
+     * breathed" were the same question and this could ask kinetics. The outer moon has a thick
+     * atmosphere of nitrogen and methane that would kill a player in minutes. Kinetics answers
+     * whether there is air to FLY through, which is physics; whether a person can breathe it is
+     * not, and belongs here.
      */
     public static boolean isBreathable(ResourceKey<Level> dimension) {
-        KineticsService kinetics = KineticsMod.service();
-        if (kinetics == null) return true;
-        var environment = kinetics.environmentOf(dimension);
-        if (environment == null) return true;
-        return environment.atmosphere().isPresent();
+        return dev.lilkuzco.cosmos.world.CosmosWorlds.breathable(dimension);
     }
 
     /** Air remaining in a suit stack, in ticks. */

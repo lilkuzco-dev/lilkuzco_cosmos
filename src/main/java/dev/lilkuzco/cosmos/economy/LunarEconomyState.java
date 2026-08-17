@@ -22,6 +22,7 @@ public final class LunarEconomyState extends SavedData {
 
 	private static final Codec<LunarEconomyState> CODEC = RecordCodecBuilder.create(i -> i.group(
 			Codec.STRING.optionalFieldOf("snapshot", "").forGetter(s -> s.snapshot),
+			Codec.STRING.optionalFieldOf("haze_snapshot", "").forGetter(s -> s.hazeSnapshot),
 			POSITIONS.optionalFieldOf("electrolysers", java.util.List.of())
 					.forGetter(s -> java.util.List.copyOf(s.electrolysers)),
 			POSITIONS.optionalFieldOf("kilns", java.util.List.of())
@@ -33,6 +34,7 @@ public final class LunarEconomyState extends SavedData {
 			DataFixTypes.LEVEL);
 
 	private String snapshot = "";
+	private String hazeSnapshot = "";
 	private final java.util.Set<net.minecraft.core.BlockPos> electrolysers =
 			new java.util.LinkedHashSet<>();
 	private final java.util.Set<net.minecraft.core.BlockPos> kilns = new java.util.LinkedHashSet<>();
@@ -40,9 +42,11 @@ public final class LunarEconomyState extends SavedData {
 	public LunarEconomyState() {
 	}
 
-	private LunarEconomyState(String snapshot, java.util.List<net.minecraft.core.BlockPos> plants,
+	private LunarEconomyState(String snapshot, String hazeSnapshot,
+	                          java.util.List<net.minecraft.core.BlockPos> plants,
 	                          java.util.List<net.minecraft.core.BlockPos> kilns) {
 		this.snapshot = snapshot;
+		this.hazeSnapshot = hazeSnapshot;
 		this.electrolysers.addAll(plants);
 		this.kilns.addAll(kilns);
 	}
@@ -82,6 +86,13 @@ public final class LunarEconomyState extends SavedData {
 
 	public void put(LunarEconomy model) {
 		this.snapshot = model.encode();
+		setDirty();
+	}
+
+	public String hazeSnapshot() { return hazeSnapshot; }
+
+	public void putHaze(LunarEconomy model) {
+		this.hazeSnapshot = model.encode();
 		setDirty();
 	}
 }

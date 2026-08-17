@@ -127,7 +127,42 @@ read off kinetics' own solution.
 Stand on the apron with a lander in the payload slot when the count reaches zero and you are crew.
 Walk off it and you are not.
 
-### The lunar economy
+### Haze — the outer moon
+
+The second destination, at **120 planetary radii** — inside the 145 R sphere-of-influence limit, so
+it stays a real satellite when the heliocentric frame eventually lands.
+
+**It has an atmosphere, and that is the entire reason it exists.** Everything the Moon taught is
+inverted:
+
+| | the Moon | Haze |
+|---|---|---|
+| air | none | thick, cold, unbreathable |
+| gravity | 0.165 g | 0.138 g |
+| arriving | retro-burn, 444 m/s of propellant | **parachutes, for free** |
+| a canopy at 200 m/s | **0.0 Pa** | **9,871 Pa** |
+| coast | 240 s ridden | 666 s ridden |
+| feedstock | water ice → oxygen **and** fuel | ammonia → fuel and buffer gas, **no oxygen** |
+
+Neither arrival is a special case. They fall out of one boolean — whether kinetics was told the
+dimension has an atmosphere — because every force in the model reads the density it is given.
+
+**Departure Δv is almost identical: 2,970 m/s to the Moon, 2,973 to Haze.** That flat ladder is
+exactly what `PLANETS.md` measured and why interplanetary distance has to wait for a real
+heliocentric frame. What distance buys here is *time* and a different way to arrive, not a bigger
+rocket.
+
+**The payload is the itinerary.** A lunar lander has engines and no heat shield; an entry capsule
+has a heat shield and no engines. Neither can do the other's job, so which one sits in the pad
+decides where the flight goes.
+
+Ammonia is **17.76% hydrogen by mass** against water's 11.19% — a richer fuel source, and it yields
+**no oxygen at all**. A Haze base can make propellant it cannot burn and gas it cannot breathe.
+The Moon gives you both halves and runs out; Haze gives you one half and does not.
+
+---
+
+## The lunar economy
 
 Built on **warfront's economic template**, read as a reference and not modified. Everything
 structural carries across — a pure model with no Minecraft dependency, a seeded SplitMix64 with

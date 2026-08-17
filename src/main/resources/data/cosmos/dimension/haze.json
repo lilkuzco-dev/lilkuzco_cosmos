@@ -1,0 +1,57 @@
+{
+  "type": "cosmos:haze",
+  "generator": {
+    "type": "minecraft:noise",
+    "settings": "cosmos:haze",
+    "biome_source": {
+      "type": "minecraft:multi_noise",
+      "biomes": [
+        {
+          "biome": "cosmos:tholin_dunes",
+          "parameters": {
+            "temperature": 0.0,
+            "humidity": 0.0,
+            "continentalness": [
+              0.1,
+              1.0
+            ],
+            "erosion": 0.0,
+            "weirdness": 0.0,
+            "depth": 0.0,
+            "offset": 0.0
+          }
+        },
+        {
+          "biome": "cosmos:methane_flats",
+          "parameters": {
+            "temperature": 0.0,
+            "humidity": 0.0,
+            "continentalness": [
+              -1.0,
+              0.1
+            ],
+            "erosion": 0.0,
+            "weirdness": 0.0,
+            "depth": 0.0,
+            "offset": 0.0
+          }
+        },
+        {
+          "biome": "cosmos:ammonia_shelf",
+          "parameters": {
+            "temperature": [
+              -1.0,
+              -0.6
+            ],
+            "humidity": 0.0,
+            "continentalness": 0.0,
+            "erosion": 0.0,
+            "weirdness": 0.0,
+            "depth": 0.0,
+            "offset": 0.0
+          }
+        }
+      ]
+    }
+  }
+}

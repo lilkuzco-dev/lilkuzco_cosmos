@@ -108,6 +108,41 @@ public final class CosmosBlocks {
                     .lightLevel(state -> 5)
                     .sound(SoundType.METAL));
 
+    // ---- the outer moon --------------------------------------------------
+
+    /** Tholin: the orange organic sludge sunlight makes out of a methane atmosphere. */
+    public static final Block THOLIN_SAND = register(
+            "tholin_sand", Block::new,
+            BlockBehaviour.Properties.of()
+                    .mapColor(MapColor.COLOR_ORANGE)
+                    .strength(0.6F)
+                    .sound(SoundType.SAND));
+
+    /** The bedrock beneath: water ice so cold it behaves as rock, which at 94 K it does. */
+    public static final Block HAZE_BEDROCK = register(
+            "haze_bedrock", Block::new,
+            BlockBehaviour.Properties.of()
+                    .mapColor(MapColor.TERRACOTTA_BROWN)
+                    .instrument(NoteBlockInstrument.BASEDRUM)
+                    .requiresCorrectToolForDrops()
+                    .strength(1.6F, 4.0F)
+                    .sound(SoundType.BASALT));
+
+    /**
+     * Ammonia ice, and the reason to come here.
+     *
+     * <p>Cracks into nitrogen and hydrogen: a habitat buffer gas and half a propellant. It is
+     * stable at the surface on this body because ammonia freezes at 195 K and here it is 94 K -
+     * no permanent shadow required, unlike lunar water.
+     */
+    public static final Block AMMONIA_ICE = register(
+            "ammonia_ice", Block::new,
+            BlockBehaviour.Properties.of()
+                    .mapColor(MapColor.COLOR_YELLOW)
+                    .requiresCorrectToolForDrops()
+                    .strength(1.0F)
+                    .sound(SoundType.GLASS));
+
     // ---- in-situ resource utilisation ------------------------------------
 
     /**
@@ -138,6 +173,19 @@ public final class CosmosBlocks {
                             dev.lilkuzco.cosmos.isru.IsruBlock.LIT) ? 13 : 0)
                     .sound(SoundType.METAL));
 
+    /** Cracks ammonia into nitrogen and hydrogen. Only runs where the ammonia is. */
+    public static final Block AMMONIA_CRACKER = register(
+            "ammonia_cracker",
+            properties -> new dev.lilkuzco.cosmos.isru.IsruBlock(properties,
+                    dev.lilkuzco.cosmos.isru.IsruRegistry.Kind.CRACKER),
+            BlockBehaviour.Properties.of()
+                    .mapColor(MapColor.COLOR_YELLOW)
+                    .requiresCorrectToolForDrops()
+                    .strength(3.5F, 6.0F)
+                    .lightLevel(state -> state.getValue(
+                            dev.lilkuzco.cosmos.isru.IsruBlock.LIT) ? 8 : 0)
+                    .sound(SoundType.METAL));
+
     /** What a base is built out of: the ground it stands on, baked until it holds together. */
     public static final Block SINTERED_REGOLITH = register(
             "sintered_regolith", Block::new,
@@ -157,12 +205,16 @@ public final class CosmosBlocks {
             out.insertAfter(SATELLITE_CONSOLE.asItem(), OXYGEN_STATION);
             out.insertAfter(OXYGEN_STATION.asItem(), ELECTROLYSER);
             out.insertAfter(ELECTROLYSER.asItem(), REGOLITH_KILN);
+            out.insertAfter(REGOLITH_KILN.asItem(), AMMONIA_CRACKER);
         });
         CreativeModeTabEvents.modifyOutputEvent(CreativeModeTabs.NATURAL_BLOCKS).register(out -> {
             out.insertAfter(Items.GRAVEL, REGOLITH);
             out.insertAfter(REGOLITH.asItem(), MARE_BASALT);
             out.insertAfter(MARE_BASALT.asItem(), LUNAR_ICE);
             out.insertAfter(LUNAR_ICE.asItem(), SINTERED_REGOLITH);
+            out.insertAfter(SINTERED_REGOLITH.asItem(), THOLIN_SAND);
+            out.insertAfter(THOLIN_SAND.asItem(), HAZE_BEDROCK);
+            out.insertAfter(HAZE_BEDROCK.asItem(), AMMONIA_ICE);
         });
     }
 

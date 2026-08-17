@@ -349,6 +349,88 @@ def capsule_entity_sheet():
     return p
 
 
+def tholin_sand():
+    """Orange organic drift - what sunlight makes of a methane atmosphere."""
+    p = blank()
+    base = (176, 116, 58, 255)
+    for y in range(16):
+        for x in range(16):
+            n = h(x, y, 91)
+            p[y][x] = shade(base, 0.86 + n * 0.28)
+    for (x, y) in ((3, 4), (11, 6), (6, 12), (14, 13), (1, 9)):
+        p[y][x] = shade(base, 0.68)
+    return p
+
+
+def haze_bedrock():
+    """Water ice so cold it behaves as rock - which at 94 K it does."""
+    p = blank()
+    base = (122, 96, 78, 255)
+    for y in range(16):
+        for x in range(16):
+            n = h(x, y, 93)
+            p[y][x] = shade(base, 0.80 + n * 0.34)
+    for x in range(16):
+        p[5][x] = shade(base, 0.66)
+        p[11][x] = shade(base, 0.70)
+    return p
+
+
+def ammonia_ice():
+    """Pale yellow ice: nitrogen and hydrogen, waiting to be cracked apart."""
+    p = blank()
+    base = (214, 208, 138, 255)
+    for y in range(16):
+        for x in range(16):
+            n = h(x, y, 95)
+            p[y][x] = shade(base, 0.84 + n * 0.26)
+    # A few bright facets, so it reads as ice rather than sand.
+    for (x, y) in ((2, 3), (9, 2), (5, 8), (12, 10), (7, 14)):
+        p[y][x] = [244, 240, 196, 255]
+    return p
+
+
+def entry_capsule_item():
+    """A blunt cone under a canopy: the vehicle for a world with air."""
+    p = blank()
+    for y in range(2, 6):
+        for x in range(3, 13):
+            p[y][x] = [226, 230, 238, 255]
+    for x in range(3, 13):
+        p[2][x] = [214, 84, 66, 255]
+    for y in range(7, 12):
+        for x in range(5, 11):
+            p[y][x] = [196, 200, 210, 255]
+    for y in range(12, 14):
+        for x in range(4, 12):
+            p[y][x] = [58, 48, 44, 255]
+    p[6][5] = [176, 168, 150, 255]
+    p[6][10] = [176, 168, 150, 255]
+    return p
+
+
+def ammonia_cracker():
+    """A cracking retort: pale yellow vessel, hot coils."""
+    p = blank()
+    for y in range(16):
+        for x in range(16):
+            p[y][x] = [150, 146, 132, 255]
+    for y in range(2, 14):
+        for x in range(3, 13):
+            p[y][x] = [196, 190, 140, 255]
+    for y in range(5, 11):
+        for x in range(5, 11):
+            p[y][x] = [226, 220, 156, 255]
+    for x in range(4, 12):
+        p[4][x] = [188, 120, 54, 255]
+        p[11][x] = [188, 120, 54, 255]
+    p[7][6] = [250, 246, 210, 255]
+    p[9][9] = [250, 246, 210, 255]
+    for y in range(2, 5):
+        p[y][12] = [110, 106, 96, 255]
+    return p
+
+
 def electrolyser():
     """A cryo plant: pale metal, a blue cell, and frost at the base."""
     p = blank()
@@ -488,6 +570,11 @@ written.append(png(os.path.join(OUT, "item", "lunar_lander.png"), lander_item())
 os.makedirs(os.path.join(OUT, "entity"), exist_ok=True)
 written.append(png(os.path.join(OUT, "entity", "rocket.png"), rocket_entity_sheet()))
 written.append(png(os.path.join(OUT, "entity", "capsule.png"), capsule_entity_sheet()))
+written.append(png(os.path.join(OUT, "block", "tholin_sand.png"), tholin_sand()))
+written.append(png(os.path.join(OUT, "block", "haze_bedrock.png"), haze_bedrock()))
+written.append(png(os.path.join(OUT, "block", "ammonia_ice.png"), ammonia_ice()))
+written.append(png(os.path.join(OUT, "item", "entry_capsule.png"), entry_capsule_item()))
+written.append(png(os.path.join(OUT, "block", "ammonia_cracker.png"), ammonia_cracker()))
 written.append(png(os.path.join(OUT, "block", "electrolyser.png"), electrolyser()))
 written.append(png(os.path.join(OUT, "block", "regolith_kiln.png"), regolith_kiln()))
 written.append(png(os.path.join(OUT, "block", "sintered_regolith.png"), sintered_regolith()))

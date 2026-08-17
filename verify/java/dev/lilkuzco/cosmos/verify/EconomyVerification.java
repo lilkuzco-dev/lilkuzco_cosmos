@@ -24,6 +24,7 @@ public final class EconomyVerification {
 		System.out.println("template: warfront civilization/EconomyModel (read-only reference)");
 
 		chemistry();
+		ammonia();
 		conservation();
 		determinism();
 		snapshot();
@@ -67,6 +68,43 @@ public final class EconomyVerification {
 				String.format("%.1f%% of the oxygen produced", spare / o * 100.0));
 		check("stoichiometric 8:1 would leave nothing spare",
 				o - h * 8.0 < 1e-3, "which is why engines run fuel-rich");
+	}
+
+	// ---- 1b. ammonia, and the outer moon's lopsided trade -------------------
+
+	private static void ammonia() {
+		section("1b. Ammonia is 17.76% hydrogen — richer than water, and yields no oxygen");
+		double h = LunarEconomy.AMMONIA_HYDROGEN_FRACTION;
+		double n = LunarEconomy.AMMONIA_NITROGEN_FRACTION;
+		System.out.printf("   1 kg ammonia -> %.4f kg H2 + %.4f kg N2%n", h, n);
+
+		check("the mass fractions sum to exactly one", Math.abs(h + n - 1.0) < 1e-12,
+				String.format("%.15f", h + n));
+		check("hydrogen's share matches 3.024/17.031", Math.abs(h - 3.024 / 17.031) < 1e-9,
+				String.format("%.6f", h));
+		check("ammonia is a richer hydrogen source than water",
+				h > LunarEconomy.HYDROGEN_FRACTION,
+				String.format("%.2f%% vs water's %.2f%%", h * 100.0,
+						LunarEconomy.HYDROGEN_FRACTION * 100.0));
+
+		// The trade: a cracking base gets fuel and buffer gas and NO oxidiser at all.
+		LunarEconomy model = new LunarEconomy(
+				new LunarEconomy.Config(5150L, 4, 30_000.0, 8, 2.5, 60_000.0, 0.0, 0, 0));
+		for (LunarEconomy.Process process : LunarEconomy.Process.values()) {
+			model.setDuty(process, process == LunarEconomy.Process.CRACK ? 1.0 : 0.0);
+		}
+		model.advance(8_000);
+		System.out.printf("   cracking only: %.0f kg H2, %.0f kg N2, %.0f kg O2%n",
+				model.stock(Resource.HYDROGEN), model.stock(Resource.NITROGEN),
+				model.stock(Resource.OXYGEN));
+		check("cracking produces hydrogen", model.stock(Resource.HYDROGEN) > 0.0,
+				String.format("%.0f kg", model.stock(Resource.HYDROGEN)));
+		check("and nitrogen", model.stock(Resource.NITROGEN) > 0.0,
+				String.format("%.0f kg", model.stock(Resource.NITROGEN)));
+		check("and NO oxygen — the outer moon cannot make air",
+				model.stock(Resource.OXYGEN) == 0.0, "0 kg, and that is the trade");
+		check("the books still balance", model.ledger().balanced(),
+				String.format("residual %.3e kg", model.ledger().residual()));
 	}
 
 	// ---- 2. conservation ----------------------------------------------------

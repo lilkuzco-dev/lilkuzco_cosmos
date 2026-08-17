@@ -1,0 +1,10 @@
+{
+  "variants": {
+    "lit=false": {
+      "model": "cosmos:block/ammonia_cracker"
+    },
+    "lit=true": {
+      "model": "cosmos:block/ammonia_cracker"
+    }
+  }
+}

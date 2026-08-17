@@ -68,7 +68,10 @@ public final class CosmosCommands {
                 .then(Commands.literal("testlaunch")
                         .then(Commands.argument("tier", StringArgumentType.word())
                                 .then(Commands.argument("propellant", StringArgumentType.word())
-                                        .executes(CosmosCommands::testLaunch))))
+                                        .executes(CosmosCommands::testLaunch)
+                                        .then(Commands.argument("destination",
+                                                        StringArgumentType.word())
+                                                .executes(CosmosCommands::testLaunch)))))
 
                 .then(Commands.literal("padtest").executes(CosmosCommands::padTest))
 
@@ -83,6 +86,8 @@ public final class CosmosCommands {
                                 .executes(CosmosCommands::economy)))
 
                 .then(Commands.literal("moon").executes(CosmosCommands::moon))
+
+                .then(Commands.literal("worlds").executes(CosmosCommands::worlds))
 
                 .then(Commands.literal("moonland")
                         .then(Commands.argument("propellant_kg", DoubleArgumentType.doubleArg(0))
@@ -494,6 +499,22 @@ public final class CosmosCommands {
                 new BlockPos(x, 0, z));
     }
 
+    /**
+     * Where a test launch is headed. Defaults to the Moon; {@code destination} names another.
+     */
+    private static dev.lilkuzco.cosmos.moon.Destination resolveDestination(
+            CommandContext<CommandSourceStack> ctx) {
+        try {
+            String name = StringArgumentType.getString(ctx, "destination");
+            for (var d : dev.lilkuzco.cosmos.moon.Destination.values()) {
+                if (d.name().equalsIgnoreCase(name)) return d;
+            }
+        } catch (IllegalArgumentException noArgument) {
+            // Not supplied.
+        }
+        return dev.lilkuzco.cosmos.moon.Destination.MOON;
+    }
+
     /** Push the world's machine counts into the model, as the manager does every economic tick. */
     private static void syncDuty(net.minecraft.server.MinecraftServer server,
                                  dev.lilkuzco.cosmos.economy.LunarEconomy model) {
@@ -507,6 +528,68 @@ public final class CosmosCommands {
                     ? kilns : electrolysers;
             model.setDuty(process, Math.min(1.0, machines / full));
         }
+    }
+
+    /**
+     * Every cosmos world, and the four facts that define one.
+     *
+     * <p>Resolved live rather than described: the gravity and atmosphere come back out of kinetics,
+     * the terrain is sampled by generating it, and breathability is asked of the same code life
+     * support asks. A world that reports correctly here is registered correctly.
+     */
+    private static int worlds(CommandContext<CommandSourceStack> ctx) {
+        CommandSourceStack source = ctx.getSource();
+        var server = source.getServer();
+        KineticsService kinetics = KineticsMod.service();
+        if (kinetics == null) {
+            source.sendFailure(Component.literal("kinetics service unavailable"));
+            return 0;
+        }
+        var k = kinetics.constants();
+
+        for (var world : dev.lilkuzco.cosmos.world.CosmosWorlds.all()) {
+            var level = server.getLevel(world.dimension());
+            if (level == null) {
+                line(source, "%s: ABSENT from this world", world.dimension().identifier());
+                continue;
+            }
+            var env = kinetics.environmentOf(level.dimension());
+            line(source, "== %s ==", world.dimension().identifier());
+            line(source, "   gravity %.4f m/s^2 (%.5f g), atmosphere %s, breathable %s",
+                    env == null ? 0.0 : env.gravity(), world.gravityScalar(),
+                    env == null ? "UNREGISTERED"
+                            : env.atmosphere().isPresent() ? "PRESENT" : "vacuum",
+                    dev.lilkuzco.cosmos.world.CosmosWorlds.breathable(level.dimension()));
+            if (env != null) {
+                line(source, "   a 20 m2 canopy at 200 m/s, 50 m up feels %.1f Pa",
+                        env.atmosphere().dynamicPressure(200.0, 50.0));
+            }
+            // Generate real columns; a heightmap query alone reports an ungenerated world as void.
+            java.util.Map<String, Integer> surfaces = new java.util.LinkedHashMap<>();
+            for (int[] spot : new int[][] {{0, 0}, {600, 600}, {-2400, 1200}}) {
+                level.getChunk(spot[0] >> 4, spot[1] >> 4,
+                        net.minecraft.world.level.chunk.status.ChunkStatus.FULL, true);
+                BlockPos top = level.getHeightmapPos(
+                        net.minecraft.world.level.levelgen.Heightmap.Types.WORLD_SURFACE,
+                        new BlockPos(spot[0], 0, spot[1]));
+                surfaces.merge(level.getBlockState(top.below()).getBlock().getDescriptionId()
+                        + " @y" + top.getY(), 1, Integer::sum);
+            }
+            line(source, "   surface samples: %s", surfaces);
+            line(source, "   biome at origin: %s",
+                    level.getBiome(new BlockPos(0, 80, 0)).getRegisteredName());
+        }
+
+        for (var d : dev.lilkuzco.cosmos.moon.Destination.values()) {
+            line(source, "destination %s: depart %.1f m/s (total %.1f), arrive %.1f m/s at %.0f m, %s",
+                    d, d.injectionDeltaV(k), d.departureBudget(k), d.arrivalSpeed(k),
+                    d.arrivalAltitude(),
+                    d.aerodynamicArrival() ? "PARACHUTES" : "retro-burn");
+            line(source, "   coast %.0f s simulated -> %.0f s ridden",
+                    d.coastSeconds(k),
+                    d.coastSeconds(k) / dev.lilkuzco.cosmos.moon.LunarTransit.TIME_COMPRESSION);
+        }
+        return 1;
     }
 
     // ---- status -----------------------------------------------------------
@@ -674,6 +757,7 @@ public final class CosmosCommands {
                 propellant, tier.fuelCapacityKg(),
                 crewed ? null : dev.lilkuzco.cosmos.satellite.SatellitePayload.RECON,
                 crewed, crew,
+                crewed ? resolveDestination(ctx) : null,
                 source.getLevel().getBlockState(pos));
         if (rocket == null) {
             source.sendFailure(Component.literal("launch failed to create a rocket entity"));

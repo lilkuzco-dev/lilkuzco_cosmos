@@ -75,6 +75,7 @@ public class RocketEntity extends Entity {
                                       Propellant propellant, double fuelKg,
                                       SatellitePayload payload, boolean crewed,
                                       java.util.List<net.minecraft.server.level.ServerPlayer> crew,
+                                      dev.lilkuzco.cosmos.moon.Destination destination,
                                       BlockState padState) {
         KineticsService kinetics = KineticsMod.service();
         if (kinetics == null) return null;
@@ -115,7 +116,7 @@ public class RocketEntity extends Entity {
         }
 
         LaunchTracker.track(rocket.bodyId, tier, payload, rocket.padPos,
-                kinetics.worldTimeSeconds(), crewed, propellant, aboard);
+                kinetics.worldTimeSeconds(), crewed, propellant, aboard, destination);
         return rocket;
     }
 

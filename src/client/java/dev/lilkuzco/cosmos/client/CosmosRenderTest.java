@@ -46,7 +46,8 @@ public class CosmosRenderTest implements FabricClientGameTest {
 			// ---- 1. the blocks --------------------------------------------------
 			String[] blocks = { "launch_pad", "pad_frame", "fuel_tank", "satellite_console",
 					"oxygen_station", "regolith", "mare_basalt", "lunar_ice", "electrolyser",
-					"regolith_kiln", "sintered_regolith" };
+					"regolith_kiln", "sintered_regolith", "tholin_sand", "haze_bedrock",
+					"ammonia_ice", "ammonia_cracker" };
 			for (int i = 0; i < blocks.length; i++) {
 				server.runCommand("setblock " + (-10 + i * 2) + " 100 8 cosmos:" + blocks[i]);
 			}
@@ -61,7 +62,7 @@ public class CosmosRenderTest implements FabricClientGameTest {
 			context.waitTicks(10);
 			for (String item : new String[] {
 					"rocket_sounding", "rocket_orbital", "rocket_heavy", "rocket_lunar",
-					"satellite_recon", "satellite_comms", "lunar_lander",
+					"satellite_recon", "satellite_comms", "lunar_lander", "entry_capsule",
 					"pressure_suit", "oxygen_tank" }) {
 				server.runCommand("clear @p");
 				server.runCommand("give @p cosmos:" + item);

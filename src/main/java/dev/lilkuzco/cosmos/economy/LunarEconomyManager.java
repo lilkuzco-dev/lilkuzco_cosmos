@@ -27,6 +27,8 @@ public final class LunarEconomyManager {
 	public static final int MACHINES_FOR_FULL_DUTY = 4;
 
 	private static LunarEconomy model;
+	private static LunarEconomy haze;
+	private static LunarEconomy.Report lastHazeReport;
 	private static LunarEconomy.Report lastReport;
 	private static long lastNanos = -1L;
 
@@ -36,6 +38,8 @@ public final class LunarEconomyManager {
 	public static void register() {
 		ServerLifecycleEvents.SERVER_STOPPED.register(server -> {
 			model = null;
+			haze = null;
+			lastHazeReport = null;
 			lastReport = null;
 			lastNanos = -1L;
 			hydrated = false;
@@ -56,6 +60,7 @@ public final class LunarEconomyManager {
 
 		LunarEconomy economy = model(server);
 		long started = System.nanoTime();
+		tickHaze(server);
 
 		// The world sets the throttle. Counting machines every economic tick rather than caching
 		// it means breaking an electrolyser stops production immediately, which is the behaviour a
@@ -77,6 +82,48 @@ public final class LunarEconomyManager {
 		// a base's entire production history to a crash, which is a much worse trade.
 		LunarEconomyState.get(server).put(economy);
 	}
+
+	/**
+	 * The outer moon's economy: one cracker roster, one model, the same conservation audit.
+	 *
+	 * <p>A second world does not get a second model class. It gets the same one with a different
+	 * process enabled and a different seed - which is the test of whether the template generalised
+	 * or was only ever the Moon's.
+	 */
+	private static void tickHaze(MinecraftServer server) {
+		if (server.getLevel(dev.lilkuzco.cosmos.world.CosmosWorlds.HAZE) == null) return;
+		LunarEconomy economy = hazeModel(server);
+		for (LunarEconomy.Process process : LunarEconomy.Process.values()) {
+			economy.setDuty(process, process == LunarEconomy.Process.CRACK
+					? duty(IsruRegistry.count(IsruRegistry.Kind.CRACKER)) : 0.0);
+		}
+		economy.step();
+		lastHazeReport = economy.report();
+		LunarEconomyState.get(server).putHaze(economy);
+	}
+
+	private static LunarEconomy hazeModel(MinecraftServer server) {
+		if (haze != null) return haze;
+		String snapshot = LunarEconomyState.get(server).hazeSnapshot();
+		if (snapshot != null && !snapshot.isEmpty()) {
+			try {
+				haze = LunarEconomy.decode(snapshot);
+				return haze;
+			} catch (IllegalArgumentException exception) {
+				Cosmos.LOG.error("outer-moon economy snapshot failed validation; starting fresh",
+						exception);
+			}
+		}
+		long seed = server.overworld().getSeed() ^ 0x48415A45L;   // "HAZE"
+		haze = new LunarEconomy(LunarEconomy.Config.validation(seed));
+		Cosmos.LOG.info("outer-moon economy started, seed {}", seed);
+		return haze;
+	}
+
+	/** The outer moon's last report, or null if that world does not exist. */
+	public static LunarEconomy.Report hazeReport() { return lastHazeReport; }
+
+	public static LunarEconomy hazeModelOrNull() { return haze; }
 
 	private static double duty(int machines) {
 		return Math.min(1.0, machines / (double) MACHINES_FOR_FULL_DUTY);

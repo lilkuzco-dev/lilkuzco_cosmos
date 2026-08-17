@@ -95,18 +95,20 @@ public final class LunarTransit {
 		final double startedAt;
 		final double coastSeconds;
 		final BlockPos origin;
+		final Destination destination;
 		int vehicle = -1;
 		String landerBodyId;
 		Stage stage = Stage.COAST;
 		double lastSpeed;
 
 		Mission(UUID crew, Propellant propellant, double startedAt, double coastSeconds,
-		        BlockPos origin) {
+		        BlockPos origin, Destination destination) {
 			this.crew = crew;
 			this.propellant = propellant;
 			this.startedAt = startedAt;
 			this.coastSeconds = coastSeconds;
 			this.origin = origin;
+			this.destination = destination;
 		}
 
 		UUID crew() { return crew; }
@@ -114,6 +116,7 @@ public final class LunarTransit {
 		double startedAt() { return startedAt; }
 		double coastSeconds() { return coastSeconds; }
 		BlockPos origin() { return origin; }
+		Destination destination() { return destination; }
 		String landerBodyId() { return landerBodyId; }
 		Stage stage() { return stage; }
 	}
@@ -136,10 +139,16 @@ public final class LunarTransit {
 	 * flight reaches the trans-lunar budget.
 	 */
 	public static void begin(ServerPlayer crew, Propellant propellant, BlockPos origin) {
+		begin(crew, propellant, origin, Destination.MOON);
+	}
+
+	/** Begin a transit to a chosen destination. */
+	public static void begin(ServerPlayer crew, Propellant propellant, BlockPos origin,
+	                         Destination destination) {
 		KineticsService kinetics = KineticsMod.service();
 		if (kinetics == null) return;
 
-		ServerLevel moon = crew.level().getServer().getLevel(MoonDimension.MOON);
+		ServerLevel moon = crew.level().getServer().getLevel(destination.dimension());
 		if (moon == null) {
 			crew.sendSystemMessage(Component.translatable("cosmos.transit.no_moon"));
 			return;
@@ -159,21 +168,21 @@ public final class LunarTransit {
 			return;
 		}
 
-		double coast = kinetics.orbits().mechanics().lunarTransferTime() / TIME_COMPRESSION;
+		double simulated = destination.coastSeconds(kinetics.constants());
+		double coast = simulated / TIME_COMPRESSION;
 		Mission mission = new Mission(crew.getUUID(), propellant,
-				kinetics.worldTimeSeconds(), coast, origin.immutable());
+				kinetics.worldTimeSeconds(), coast, origin.immutable(), destination);
 		mission.vehicle = vehicle.getId();
 		MISSIONS.put(crew.getUUID(), mission);
 
 		crew.sendSystemMessage(Component.translatable("cosmos.transit.begin",
-				String.format("%.0f", kinetics.orbits().mechanics().lunarTransferTime() / 3600.0),
-				String.format("%.0f", coast)));
+				Component.translatable(destination.translationKey()),
+				String.format("%.0f", simulated / 3600.0), String.format("%.0f", coast)));
 		crew.level().playSound(null, crew.blockPosition(), SoundEvents.BEACON_ACTIVATE,
 				SoundSource.PLAYERS, 1.0F, 1.2F);
-		Cosmos.LOG.info("trans-lunar injection for {}: {} s of transfer played over {} s",
-				crew.getGameProfile().name(),
-				String.format("%.0f", kinetics.orbits().mechanics().lunarTransferTime()),
-				String.format("%.0f", coast));
+		Cosmos.LOG.info("injection for {} toward {}: {} s of transfer played over {} s",
+				crew.getGameProfile().name(), destination.dimension().identifier(),
+				String.format("%.0f", simulated), String.format("%.0f", coast));
 	}
 
 	private static void tick(MinecraftServer server) {
@@ -205,11 +214,11 @@ public final class LunarTransit {
 		double fraction = Math.min(1.0, elapsed / Math.max(1e-6, mission.coastSeconds()));
 
 		// Fly the transfer vehicle down the view mapping. It owns no motion; this is its motion.
-		ServerLevel moon = server.getLevel(MoonDimension.MOON);
+		ServerLevel moon = server.getLevel(mission.destination().dimension());
 		if (moon != null && moon.getEntity(mission.vehicle) instanceof TransitEntity vehicle) {
 			double y = kinetics.constants().d("world.sea_level_y")
 					+ COAST_START_ALTITUDE
-					- (COAST_START_ALTITUDE - ARRIVAL_ALTITUDE) * fraction;
+					- (COAST_START_ALTITUDE - mission.destination().arrivalAltitude()) * fraction;
 			vehicle.setPos(vehicle.getX(), y, vehicle.getZ());
 		}
 
@@ -239,33 +248,33 @@ public final class LunarTransit {
 	 */
 	private static boolean arrive(MinecraftServer server, KineticsService kinetics,
 	                              ServerPlayer crew, Mission mission) {
-		ServerLevel moon = server.getLevel(MoonDimension.MOON);
+		Destination destination = mission.destination();
+		ServerLevel moon = server.getLevel(destination.dimension());
 		if (moon == null) {
 			crew.sendSystemMessage(Component.translatable("cosmos.transit.no_moon"));
 			Cosmos.LOG.error("transit arrived but this world has no {} dimension",
-					MoonDimension.MOON.identifier());
+					destination.dimension().identifier());
 			return true;
 		}
 
 		Constants k = kinetics.constants();
-		double descentSpeed = k.d("orbit.lunar_descent_delta_v");
+		double descentSpeed = destination.arrivalSpeed(k);
 		double surfaceY = k.d("world.sea_level_y");
-		double y = surfaceY + ARRIVAL_ALTITUDE;
+		double y = surfaceY + destination.arrivalAltitude();
 
 		// Land near the origin's coordinates, so a base built at x,z has its Moon site at x,z.
 		double x = mission.origin().getX() + 0.5;
 		double z = mission.origin().getZ() + 0.5;
 
 		String bodyId = "cosmos:lander-" + mission.crew();
-		var profile = LunarLander.profile(bodyId, mission.propellant(),
-				LunarLander.PROPELLANT_KG, k);
-		KineticsService.Handle handle = kinetics.spawn(bodyId, profile, MoonDimension.MOON,
+		var profile = destination.arrivalProfile(bodyId, mission.propellant(), k);
+		KineticsService.Handle handle = kinetics.spawn(bodyId, profile, destination.dimension(),
 				new Vec3(x, y, z), new Vec3(0.0, -descentSpeed, 0.0),
-				FlightDirector.Mission.LANDING);
+				destination.arrivalMission());
 		if (handle == null) {
 			crew.sendSystemMessage(Component.translatable("cosmos.transit.no_moon"));
-			Cosmos.LOG.error("kinetics refused a lander in {} - is the dimension registered?",
-					MoonDimension.MOON.identifier());
+			Cosmos.LOG.error("kinetics refused an arrival in {} - is the dimension registered?",
+					destination.dimension().identifier());
 			return true;
 		}
 
@@ -277,14 +286,20 @@ public final class LunarTransit {
 		// The transfer stage is spent. Retire it rather than leaving it hanging at 30 km.
 		if (moon.getEntity(mission.vehicle) instanceof TransitEntity spent) spent.discard();
 
-		crew.sendSystemMessage(Component.translatable("cosmos.transit.arrived",
-				String.format("%.0f", descentSpeed), String.format("%.0f", ARRIVAL_ALTITUDE)));
-		Cosmos.LOG.info("lunar arrival for {}: {} m at {} m/s, lander delta-v {} m/s against a "
-						+ "{} m/s bill", crew.getGameProfile().name(),
-				String.format("%.0f", ARRIVAL_ALTITUDE), String.format("%.1f", descentSpeed),
-				String.format("%.1f", LunarLander.deltaV(mission.propellant(),
-						LunarLander.PROPELLANT_KG, k)),
-				String.format("%.1f", LunarLander.arrivalBudget(k)));
+		crew.sendSystemMessage(Component.translatable(destination.aerodynamicArrival()
+						? "cosmos.transit.arrived_air" : "cosmos.transit.arrived",
+				String.format("%.0f", descentSpeed),
+				String.format("%.0f", destination.arrivalAltitude())));
+		Cosmos.LOG.info("arrival for {} at {}: {} m at {} m/s, {}",
+				crew.getGameProfile().name(), destination.dimension().identifier(),
+				String.format("%.0f", destination.arrivalAltitude()),
+				String.format("%.1f", descentSpeed),
+				destination.aerodynamicArrival()
+						? "parachutes - the air does the braking"
+						: String.format("lander delta-v %.1f against a %.1f m/s bill",
+								LunarLander.deltaV(mission.propellant(),
+										LunarLander.PROPELLANT_KG, k),
+								LunarLander.arrivalBudget(k)));
 
 		mission.landerBodyId = bodyId;
 		mission.stage = Stage.DESCENT;
@@ -381,6 +396,6 @@ public final class LunarTransit {
 
 	/** The dimension a transit ends in, for anything that needs to ask without importing. */
 	public static net.minecraft.resources.ResourceKey<Level> destination() {
-		return MoonDimension.MOON;
+		return Destination.MOON.dimension();
 	}
 }

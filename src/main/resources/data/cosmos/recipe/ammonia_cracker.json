@@ -1,0 +1,17 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "building",
+  "pattern": [
+    "ITI",
+    "TFT",
+    "III"
+  ],
+  "key": {
+    "I": "minecraft:iron_ingot",
+    "T": "cosmos:oxygen_tank",
+    "F": "minecraft:blast_furnace"
+  },
+  "result": {
+    "id": "cosmos:ammonia_cracker"
+  }
+}

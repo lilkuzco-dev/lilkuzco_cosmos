@@ -100,9 +100,19 @@ public class IsruBlock extends BaseEntityBlock {
 	 * — before there is a ticking block entity to ask, and without loading one.
 	 */
 	public boolean sited(net.minecraft.server.level.ServerLevel level, BlockPos pos) {
-		if (!dev.lilkuzco.cosmos.moon.MoonDimension.isMoon(level)) return false;
-		if (kind != IsruRegistry.Kind.ELECTROLYSER) return true;
-		return level.getBiome(pos).is(dev.lilkuzco.cosmos.moon.MoonDimension.POLAR);
+		return switch (kind) {
+			// The ice is at the poles, and nowhere else.
+			case ELECTROLYSER -> level.dimension().equals(
+					dev.lilkuzco.cosmos.world.CosmosWorlds.MOON)
+					&& level.getBiome(pos).is(dev.lilkuzco.cosmos.world.CosmosWorlds.LUNAR_POLAR);
+			// The ground is everywhere, which is the kiln's whole appeal.
+			case KILN -> level.dimension().equals(dev.lilkuzco.cosmos.world.CosmosWorlds.MOON);
+			// The ammonia is on the shelf, and only on the outer moon.
+			case CRACKER -> level.dimension().equals(
+					dev.lilkuzco.cosmos.world.CosmosWorlds.HAZE)
+					&& level.getBiome(pos).is(
+							dev.lilkuzco.cosmos.world.CosmosWorlds.AMMONIA_SHELF);
+		};
 	}
 
 	/** Right-click for a status line, and to take whatever the plant has made. */

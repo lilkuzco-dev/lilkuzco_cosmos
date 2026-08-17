@@ -25,7 +25,15 @@ public final class IsruRegistry {
 		/** Melts ice, splits water, mixes propellant. Needs to be sited on ice. */
 		ELECTROLYSER,
 		/** Bakes regolith for oxygen and building material. Works anywhere. */
-		KILN
+		KILN,
+		/**
+		 * Cracks ammonia into nitrogen and hydrogen, on the outer moon.
+		 *
+		 * <p>The kind implies the world: electrolysers and kilns only run on the Moon, crackers
+		 * only on the outer moon. So a machine's kind is enough to say which economy it drives,
+		 * and the registry does not need to carry a dimension as well.
+		 */
+		CRACKER
 	}
 
 	private static final Map<Kind, Set<BlockPos>> LIVE = new EnumMap<>(Kind.class);

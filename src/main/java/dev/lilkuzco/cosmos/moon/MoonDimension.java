@@ -32,51 +32,26 @@ import net.minecraft.world.level.Level;
  */
 public final class MoonDimension {
 
-	public static final ResourceKey<Level> MOON =
-			ResourceKey.create(Registries.DIMENSION, Cosmos.id("moon"));
+	/** The Moon. Kept here because the whole of Phase B names it; the facts live in CosmosWorlds. */
+	public static final ResourceKey<Level> MOON = dev.lilkuzco.cosmos.world.CosmosWorlds.MOON;
 
-	/**
-	 * The polar biome, where the ice is.
-	 *
-	 * <p>Named here rather than in the ISRU code because siting is a fact about the Moon, not
-	 * about a machine. Permanently shadowed polar crater floors are the only place lunar water
-	 * survives, so they are the only place an electrolyser has anything to melt.
-	 */
+	/** The polar biome, where the ice is. */
 	public static final ResourceKey<net.minecraft.world.level.biome.Biome> POLAR =
-			ResourceKey.create(Registries.BIOME, Cosmos.id("lunar_polar"));
+			dev.lilkuzco.cosmos.world.CosmosWorlds.LUNAR_POLAR;
 
-	/** Lunar surface gravity as a fraction of g0 — the real 1.62 m/s^2 over 9.80665. */
+	/** Lunar surface gravity as a fraction of g0 - the real 1.62 m/s^2 over 9.80665. */
 	public static final double GRAVITY_SCALAR = 0.16519;
 
 	private MoonDimension() {
 	}
 
+	/**
+	 * Registration moved to {@link dev.lilkuzco.cosmos.world.CosmosWorlds}, which registers every
+	 * cosmos world from one list. A second destination made a Moon-specific registrar into a
+	 * template waiting to be copied, and a copied registrar is how two worlds drift apart.
+	 */
 	public static void register() {
-		ServerTickEvents.END_SERVER_TICK.register(new ServerTickEvents.EndTick() {
-			private boolean done;
-
-			@Override
-			public void onEndTick(MinecraftServer server) {
-				if (done) return;
-				KineticsService kinetics = KineticsMod.service();
-				if (kinetics == null) return;
-
-				ServerLevel moon = server.getLevel(MOON);
-				if (moon == null) {
-					// A world created before cosmos was installed has no Moon until it is
-					// regenerated. Say so once rather than retrying forever.
-					done = true;
-					Cosmos.LOG.warn("no {} dimension in this world - lunar physics not registered",
-							MOON.identifier());
-					return;
-				}
-
-				done = true;
-				kinetics.registerDimension(moon, false, GRAVITY_SCALAR, false);
-				Cosmos.LOG.info("moon registered with kinetics: {} g, vacuum "
-						+ "(no drag, no lift, parachutes inert)", GRAVITY_SCALAR);
-			}
-		});
+		dev.lilkuzco.cosmos.world.CosmosWorlds.register();
 	}
 
 	/** Whether a level is the Moon. */
