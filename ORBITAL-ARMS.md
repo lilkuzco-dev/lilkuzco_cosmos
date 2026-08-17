@@ -1,6 +1,21 @@
 # ORBITAL-ARMS.md — weapons in orbit
 
-**Phase C. Design only: nothing here is implemented.**
+> # ⛔ SEALED — HELD BY RULING, DO NOT BUILD
+>
+> **Ruled at the v0.1.0-D gate: HOLD. Do not build. Keep this as the sealed design.**
+>
+> This is an escalation to be ruled on after the server has lived a while. The aerospace program is
+> complete without it.
+>
+> **No part of this document may be implemented without an explicit new ruling** — not the orbital
+> platform, not the impactor, not the targeting integration, not "just the event contract". A
+> sealed design is sealed at its cheapest end too, because that is the end that gets built by
+> accident.
+>
+> It is kept because the analysis is worth keeping: most of the capability already exists, and
+> knowing exactly how close it is, is itself the reason to be deliberate about it.
+
+**Phase C. Design only: nothing here is implemented, and by ruling nothing here may be.**
 
 This is the document where cosmos and warfront meet, and it is worth saying up front that **most
 of it already exists**. Kinetics was built as the empire's motion authority, not as a space
@@ -108,10 +123,12 @@ crude_empire to fill, with neither mod naming the other.
 - **No editing warfront.** If this needs something from warfront, it needs a contract warfront's
   own session chooses to honour.
 
-## Open questions for you
+## Open questions — deferred by the hold
 
-1. **Do you want this at all?** It is the most consequential thing in the campaign for how the
-   server plays, and it is entirely optional — the aerospace program is complete without it.
+Question 1 has been answered: **not yet.** The rest stay open for whenever the hold is lifted.
+
+1. ~~**Do you want this at all?**~~ **Ruled: HOLD.** The aerospace program is complete without it,
+   and this will be revisited after the server has lived a while.
 2. If yes: should orbital weapons be **PvE only** (structures, hostile factions) or usable between
    players?
 3. Should an impactor require **orbital assembly** — many launches to build one large rod — or

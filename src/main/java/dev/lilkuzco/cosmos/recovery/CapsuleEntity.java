@@ -70,18 +70,28 @@ public class CapsuleEntity extends Entity {
         builder.define(CHUTE, Boolean.FALSE);
     }
 
+    /**
+     * The view no longer drives itself.
+     *
+     * <p>It used to mirror its body from here, and the comment below this method admitted the
+     * problem without anyone acting on it: a capsule enters thousands of blocks downrange and
+     * spends nearly all of its flight over chunks nobody has loaded, so this method does not run
+     * and the entity never moves. The landing resolved correctly on the server tick and
+     * <b>nothing ever arrived at the landing site to watch</b> — sixteen frames of the render
+     * battery caught an empty sky.
+     *
+     * <p>{@link RecoveryTracker} now drives the position, the synced state and the particles from
+     * the server tick, which is where the physics already lives. Empire law, rule 7: anything that
+     * must happen while nobody is nearby cannot hang off an entity tick — and that includes the
+     * part whose entire job is to be looked at.
+     */
     @Override
     public void tick() {
         super.tick();
-        if (!(level() instanceof ServerLevel server)) return;
+    }
 
-        KineticsService kinetics = KineticsMod.service();
-        if (kinetics == null) { discard(); return; }
-
-        KineticsService.Handle handle = kinetics.handle(bodyId);
-        if (handle == null) { discard(); return; }
-
-        KineticBody body = handle.body();
+    /** Called by {@link RecoveryTracker} every server tick, loaded chunks or not. */
+    public void follow(ServerLevel server, KineticBody body) {
         setPos(body.position().x(), body.position().y(), body.position().z());
 
         // Plasma intensity straight off the kinetics heating field - a state value, never damage.
@@ -99,14 +109,10 @@ public class CapsuleEntity extends Entity {
                         (int) (glow * 4), 0.3, 0.3, 0.3, 0.0);
             }
         }
-        if (body.hasInflatedChute() && tickCount % 10 == 0) {
+        if (body.hasInflatedChute() && server.getGameTime() % 10 == 0) {
             server.sendParticles(ParticleTypes.CLOUD, getX(), getY() + 2.0, getZ(),
                     6, 0.8, 0.2, 0.8, 0.0);
         }
-
-        // Landing is RecoveryTracker's job, on the server tick - this method does not run when
-        // the capsule is over unloaded chunks, which is most of its flight.
-        if (!body.phase().isInWorld()) discard();
     }
 
     /**

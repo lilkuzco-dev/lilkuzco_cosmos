@@ -1,7 +1,17 @@
 # PLANETS.md — beyond the Moon
 
-**Phase C. Design only: nothing here is implemented, and one part of it should not be until a
-decision is made.**
+> ## ✅ RULED at the v0.1.0-D gate
+>
+> **In-system bodies under the current single-body frame: APPROVED, building now.**
+>
+> **The heliocentric patched-conic frame: APPROVED FOR SCOPING as its own kinetics epic — design
+> doc first, in `lilkuzco_kinetics/HELIOCENTRIC.md`.**
+>
+> And the constraint that governs the first half: **do not ship a Mars where distance costs
+> nothing.** The flat Δv ladder measured below is the reason the real frame has to come first, so
+> no destination that depends on it may be built under the current one.
+
+**Phase C. Design only, except where ruled above.**
 
 ## The finding that governs everything else
 
@@ -68,7 +78,8 @@ ladder stays flat past the first one. It is honest and it is small.
 Stop here for destinations, and spend Phase C on depth instead of distance: lunar bases, surface
 vehicles, orbital infrastructure, the economy extended.
 
-**My recommendation is B now and A when you want interplanetary properly.** B is a few days and
+**My recommendation was B now and A when you want interplanetary properly, and that is what was
+ruled.** B is a few days and
 uses physics already under test. A is a genuine kinetics epic and deserves to be scoped as one
 rather than smuggled in as "more planets". C is the fallback if neither appeals — but the Moon
 being reachable and finite already makes a good campaign, and I would not treat that as failure.
@@ -100,9 +111,9 @@ from the Moon's retro-burn. That contrast is worth more than the distance.
   Option A ships, those notes are the checklist.**
 - **No destination without an economy.** A place you can reach and cannot use is a screenshot.
 
-## Open questions for you
+## Open questions
 
-1. **A, B, or C?**
+1. ~~**A, B, or C?**~~ **Ruled: B now, A approved for scoping.**
 2. If A: do you want **launch windows** as a hard constraint (you wait for the window) or a soft
    one (you can go anytime, badly)? Hard is more real and more frustrating; it is your server.
 3. Should other bodies have their own **finite** resources like lunar ice, or is scarcity the

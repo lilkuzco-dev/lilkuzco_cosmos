@@ -147,6 +147,52 @@ See `ECONOMY.md`.
 
 ---
 
+## One law this codebase is built around
+
+**Anything that must progress while nobody is nearby runs on the server tick, never on an entity
+or block-entity tick.**
+
+Cosmos learned this three times, each time as a different-looking bug with the same root: launch
+insertion resolved from the rocket's tick and silently produced no satellite; capsule recovery
+resolved from the capsule's tick and silently dropped no payload; the lunar ISRU roster was built
+from block-entity ticks, so a base stopped producing the moment its chunks unloaded. Unloaded
+chunks do not tick, and a simulation attached to them does not fail loudly — it does nothing while
+everything downstream reports success.
+
+`LaunchTracker`, `RecoveryTracker`, `LunarTransit` and `LunarEconomyManager` all subscribe to
+`END_SERVER_TICK`. `RocketEntity`, `CapsuleEntity` and `TransitEntity` are **views**: if one never
+ticks, the only thing lost is visuals. Registration happens on `onPlace` and
+`affectNeighborsAfterRemoval`, never in `setRemoved`, which also fires on chunk unload.
+
+It is empire law — `mod-installer/CLAUDE.md` rule 7.
+
+---
+
+## The client render battery
+
+```sh
+./gradlew runGametest      # boots a real client, screenshots every visual, ~2 min
+```
+
+**Headless verification cannot see whether anything is drawn, and two shipped releases proved it.**
+Phase A registered no entity renderer at all, so launching a rocket dereferenced a null on the
+render thread and hard-crashed the client. The fix was a renderer that drew nothing — correct as a
+crash fix, and it left the rocket invisible in flight for another whole release. Every server-side
+check passed on both: the physics were right, the satellite deployed, the logs were clean.
+
+So `CosmosRenderTest` boots a client, puts each thing cosmos draws in front of a camera, and
+screenshots it into `build/run-gametest/screenshots/`. The screenshots are the evidence and they
+are meant to be looked at.
+
+It has already earned its keep beyond the rocket: it caught that the **recovery capsule's view
+never moved**. Landing resolution had been correctly moved to the server tick, but the entity was
+still mirroring its body from its own tick — and a capsule spends nearly all of its 3,300-block
+entry over unloaded chunks. The landing was right and nothing ever arrived at the landing site to
+watch. Empire law rule 7 again, in the one place nobody thought to apply it: the part whose entire
+job is to be looked at.
+
+---
+
 ## Verifying it
 
 ```sh

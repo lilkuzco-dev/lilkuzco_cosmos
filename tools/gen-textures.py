@@ -238,6 +238,103 @@ def oxygen_tank_item():
     p[1][7] = [110, 118, 128, 255]
     return p
 
+def rocket_entity_sheet():
+    """The rocket's own 64x64 entity sheet.
+
+    A ModelPart model addresses its own sheet, not a slot on the block atlas - the second
+    half of the lesson crude_empire paid for. Every UV region here matches RocketModel
+    exactly; a mismatch is a silent smear rather than an error.
+    """
+    W = H = 64
+    p = [[[0, 0, 0, 0] for _ in range(W)] for _ in range(H)]
+
+    def rect(x0, y0, w, h, c):
+        for y in range(y0, min(y0 + h, H)):
+            for x in range(x0, min(x0 + w, W)):
+                p[y][x] = list(c)
+
+    HULL = (222, 226, 233, 255)
+    SHADE = (170, 176, 188, 255)
+    DARK = (96, 102, 114, 255)
+    BAND = (198, 62, 48, 255)
+    NOSE = (238, 241, 247, 255)
+    BELL = (70, 74, 84, 255)
+    SOOT = (40, 42, 48, 255)
+
+    # Body 8x40x8 at (0,0): unwrap 2*(8+8)=32 wide, 8+40=48 tall. Sides occupy rows 8..47.
+    rect(0, 0, 32, 48, HULL)
+    rect(0, 0, 32, 8, SHADE)                 # cap row
+    for x in range(0, 32, 8):                # panel seams between the four faces
+        rect(x, 8, 1, 40, SHADE)
+    rect(0, 12, 32, 4, BAND)                 # upper stripe - makes the roll visible
+    rect(0, 30, 32, 2, DARK)
+    rect(0, 40, 32, 3, BAND)                 # lower stripe
+    rect(0, 44, 32, 4, DARK)                 # scorched skirt above the bell
+
+    # Interstage 9x3x9 at (0,48): 36 wide, 12 tall.
+    rect(0, 48, 36, 12, DARK)
+    rect(0, 51, 36, 4, SOOT)
+
+    # Nose shoulder 5x7x5 at (36,48): 20 wide, 12 tall.
+    rect(36, 48, 20, 12, NOSE)
+    rect(36, 48, 20, 5, SHADE)
+
+    # Nose tip 2x5x2 at (32,0): 8 wide, 7 tall.
+    rect(32, 0, 8, 7, BAND)
+
+    # Bell 5x4x5 at (32,8): 20 wide, 9 tall.
+    rect(32, 8, 20, 9, BELL)
+    rect(32, 13, 20, 4, SOOT)
+
+    # Fin 1x12x6 at (32,20): 14 wide, 18 tall.
+    rect(32, 20, 14, 18, SHADE)
+    rect(32, 26, 14, 12, HULL)
+    rect(32, 33, 14, 5, BAND)
+    return p
+
+
+def capsule_entity_sheet():
+    """The capsule's own 64x64 sheet. UV regions match CapsuleModel exactly."""
+    W = H = 64
+    p = [[[0, 0, 0, 0] for _ in range(W)] for _ in range(H)]
+
+    def rect(x0, y0, w, h, c):
+        for y in range(y0, min(y0 + h, H)):
+            for x in range(x0, min(x0 + w, W)):
+                p[y][x] = list(c)
+
+    SHIELD = (58, 48, 44, 255)
+    CHAR = (34, 28, 26, 255)
+    HULL = (206, 210, 218, 255)
+    SHADE = (158, 164, 176, 255)
+    COLLAR = (110, 116, 128, 255)
+    CANOPY_A = (232, 236, 244, 255)
+    CANOPY_B = (214, 84, 66, 255)
+    CORD = (176, 168, 150, 255)
+
+    # Heat shield 10x3x10 at (0,0): 40 wide, 13 tall. Charred, because it has been used.
+    rect(0, 0, 40, 13, SHIELD)
+    rect(0, 0, 40, 10, CHAR)
+
+    # Hull 8x5x8 at (0,13): 32 wide, 13 tall.
+    rect(0, 13, 32, 13, HULL)
+    rect(0, 13, 32, 8, SHADE)
+    for x in range(0, 32, 8):
+        rect(x, 21, 1, 5, SHADE)
+
+    # Collar 6x2x6 at (0,26): 24 wide, 8 tall.
+    rect(0, 26, 24, 8, COLLAR)
+
+    # Canopy 16x4x16 at (0,34): 64 wide, 20 tall. Alternating gores, as real chutes are.
+    rect(0, 34, 64, 20, CANOPY_A)
+    for x in range(0, 64, 8):
+        rect(x, 34, 4, 20, CANOPY_B)
+
+    # Riser 1x12x1 at (0,54): 4 wide, 13 tall.
+    rect(0, 54, 4, 13, CORD)
+    return p
+
+
 def electrolyser():
     """A cryo plant: pale metal, a blue cell, and frost at the base."""
     p = blank()
@@ -374,6 +471,9 @@ written.append(png(os.path.join(OUT, "block", "oxygen_station.png"), oxygen_stat
 written.append(png(os.path.join(OUT, "item", "oxygen_tank.png"), oxygen_tank_item()))
 written.append(png(os.path.join(OUT, "item", "pressure_suit.png"), suit_item()))
 written.append(png(os.path.join(OUT, "item", "lunar_lander.png"), lander_item()))
+os.makedirs(os.path.join(OUT, "entity"), exist_ok=True)
+written.append(png(os.path.join(OUT, "entity", "rocket.png"), rocket_entity_sheet()))
+written.append(png(os.path.join(OUT, "entity", "capsule.png"), capsule_entity_sheet()))
 written.append(png(os.path.join(OUT, "block", "electrolyser.png"), electrolyser()))
 written.append(png(os.path.join(OUT, "block", "regolith_kiln.png"), regolith_kiln()))
 written.append(png(os.path.join(OUT, "block", "sintered_regolith.png"), sintered_regolith()))

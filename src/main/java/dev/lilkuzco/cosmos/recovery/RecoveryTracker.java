@@ -50,6 +50,8 @@ public final class RecoveryTracker {
         final ServerLevel level;
         double lastSpeed;
 
+        CapsuleEntity view;
+
         Pending(String bodyId, String satelliteId, SatellitePayload payload, ServerLevel level) {
             this.bodyId = bodyId;
             this.satelliteId = satelliteId;
@@ -72,6 +74,12 @@ public final class RecoveryTracker {
     }
 
     /** Record a capsule on its way down. Called at the deorbit handoff. */
+    /** Attach the view the tracker will drive. Optional: a flight with no entity still resolves. */
+    public static void view(String bodyId, CapsuleEntity capsule) {
+        Pending pending = PENDING.get(bodyId);
+        if (pending != null) pending.view = capsule;
+    }
+
     public static void track(String bodyId, String satelliteId, SatellitePayload payload,
                              ServerLevel level) {
         PENDING.put(bodyId, new Pending(bodyId, satelliteId, payload, level));
@@ -101,9 +109,16 @@ public final class RecoveryTracker {
 
             if (handle.body().phase().isInWorld()) {
                 pending.lastSpeed = handle.body().speed();
+                // Drive the view from here, on the server tick, because the entity's own tick
+                // does not run over the unloaded chunks that are most of an entry. Without this
+                // the capsule sits where it was spawned and nothing arrives to be watched.
+                if (pending.view != null && pending.view.isAlive()) {
+                    pending.view.follow(pending.level(), handle.body());
+                }
                 continue;
             }
 
+            if (pending.view != null) pending.view.discard();
             land(server, pending, handle.body().position(), pending.lastSpeed);
             if (done == null) done = new ArrayList<>();
             done.add(pending.bodyId());

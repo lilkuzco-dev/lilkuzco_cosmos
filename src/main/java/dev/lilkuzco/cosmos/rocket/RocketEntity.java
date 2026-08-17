@@ -44,6 +44,16 @@ public class RocketEntity extends Entity {
             SynchedEntityData.defineId(RocketEntity.class, EntityDataSerializers.INT);
     private static final EntityDataAccessor<Float> THROTTLE =
             SynchedEntityData.defineId(RocketEntity.class, EntityDataSerializers.FLOAT);
+    /**
+     * How large to draw this vehicle.
+     *
+     * <p>SYNCED, not derived on the client. The tier lives in a server-side field and the client
+     * has no way to see it; a renderer that read {@code tierId} would find the empty string it was
+     * constructed with and draw every vehicle the same size. Anything the draw needs has to arrive
+     * over the wire.
+     */
+    private static final EntityDataAccessor<Float> RENDER_SCALE =
+            SynchedEntityData.defineId(RocketEntity.class, EntityDataSerializers.FLOAT);
 
     private String bodyId = "";
     private String tierId = RocketTier.ORBITAL.id();
@@ -76,6 +86,7 @@ public class RocketEntity extends Entity {
         rocket.payloadName = payload == null ? "" : payload.name();
         rocket.fuelKg = fuelKg;
         rocket.padPos = pad.immutable();
+        rocket.entityData.set(RENDER_SCALE, scaleFor(tier));
         rocket.setPos(pad.getX() + 0.5, pad.getY() + 1.0, pad.getZ() + 0.5);
 
         LaunchPipeline pipeline = new LaunchPipeline(kinetics.constants());
@@ -120,6 +131,7 @@ public class RocketEntity extends Entity {
         RocketEntity entity = new RocketEntity(CosmosEntities.ROCKET, level);
         entity.bodyId = bodyId;
         entity.tierId = RocketTier.LUNAR.id();
+        entity.entityData.set(RENDER_SCALE, scaleFor(RocketTier.LUNAR));
         entity.setPos(x, y, z);
         if (!level.addFreshEntity(entity)) return null;
         crew.teleportTo(level, x, y, z, java.util.Set.of(), crew.getYRot(), crew.getXRot(), false);
@@ -155,6 +167,7 @@ public class RocketEntity extends Entity {
     protected void defineSynchedData(SynchedEntityData.Builder builder) {
         builder.define(PHASE, FlightPhase.RAIL.ordinal());
         builder.define(THROTTLE, 0.0F);
+        builder.define(RENDER_SCALE, 1.0F);
     }
 
     @Override
@@ -196,18 +209,39 @@ public class RocketEntity extends Entity {
         if (!handle.body().phase().isInWorld()) discard();
     }
 
-    /** Engine plume and the shock of a first-stage burn, from the server so everyone sees it. */
+    /**
+     * Engine plume, and the noise of it. Sent from the server so everyone nearby sees the same
+     * launch rather than only the player who lit it.
+     *
+     * <p>Scaled by the vehicle, because a sounding rocket and a 179-tonne lunar vehicle should not
+     * produce the same flame. The plume is anchored below the bell and widens with size.
+     */
     private void emitPlume(ServerLevel server, KineticsService.Handle handle) {
         if (handle.body().phase() != FlightPhase.BOOST) return;
 
-        server.sendParticles(ParticleTypes.FLAME, getX(), getY() - 1.0, getZ(),
-                12, 0.35, 0.2, 0.35, 0.02);
-        server.sendParticles(ParticleTypes.LARGE_SMOKE, getX(), getY() - 1.5, getZ(),
-                8, 0.5, 0.2, 0.5, 0.01);
+        float scale = renderScale();
+        double bell = getY() - 0.2 * scale;
+        int flames = (int) Math.max(8, 18 * scale);
+        double spread = 0.30 * scale;
 
-        if (tickCount % 4 == 0) {
+        server.sendParticles(ParticleTypes.FLAME, getX(), bell, getZ(),
+                flames, spread, 0.25, spread, 0.03);
+        server.sendParticles(ParticleTypes.SMALL_FLAME, getX(), bell - 0.6 * scale, getZ(),
+                flames, spread * 1.2, 0.3, spread * 1.2, 0.05);
+        server.sendParticles(ParticleTypes.LARGE_SMOKE, getX(), bell - 1.2 * scale, getZ(),
+                (int) Math.max(6, 12 * scale), spread * 2.0, 0.3, spread * 2.0, 0.02);
+
+        // A ground wash while it is still low: the dust a launch throws sideways is most of what
+        // makes one look heavy.
+        double altitude = getY() - server.getSeaLevel();
+        if (altitude < 12.0 * scale) {
+            server.sendParticles(ParticleTypes.CAMPFIRE_COSY_SMOKE, getX(), bell - 1.5, getZ(),
+                    (int) Math.max(8, 16 * scale), 1.6 * scale, 0.1, 1.6 * scale, 0.08);
+        }
+
+        if (tickCount % 3 == 0) {
             server.playSound(null, getX(), getY(), getZ(), SoundEvents.GENERIC_EXPLODE.value(),
-                    SoundSource.BLOCKS, 3.0F, 0.6F);
+                    SoundSource.BLOCKS, 3.5F * Math.min(2.0F, scale), 0.5F);
         }
     }
 
@@ -258,6 +292,21 @@ public class RocketEntity extends Entity {
     }
 
     public float throttle() { return entityData.get(THROTTLE); }
+
+    /** Draw scale, synced from the tier at launch. */
+    public float renderScale() { return entityData.get(RENDER_SCALE); }
+
+    /**
+     * Draw scale for a tier: roughly the cube root of its wet mass ratio, so a vehicle four times
+     * the mass is only about 1.6x taller. Rockets do not grow linearly with what they lift, and a
+     * lunar vehicle drawn to true scale against a sounding rocket would be off the screen.
+     */
+    private static float scaleFor(RocketTier tier) {
+        if (tier == RocketTier.SOUNDING) return 0.45F;
+        if (tier == RocketTier.ORBITAL) return 1.0F;
+        if (tier == RocketTier.HEAVY) return 1.35F;
+        return 2.1F;
+    }
 
     public String bodyId() { return bodyId; }
 }

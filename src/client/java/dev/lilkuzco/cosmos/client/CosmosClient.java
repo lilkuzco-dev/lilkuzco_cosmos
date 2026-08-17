@@ -6,6 +6,7 @@ import dev.lilkuzco.cosmos.satellite.CosmosNet;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.fabricmc.fabric.api.client.rendering.v1.EntityRendererRegistry;
+import net.fabricmc.fabric.api.client.rendering.v1.ModelLayerRegistry;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.MenuScreens;
 
@@ -30,9 +31,13 @@ public final class CosmosClient implements ClientModInitializer {
 		// returns null and LevelExtractor.isEntityVisible dereferences it on the render thread,
 		// crashing the client the instant the vehicle enters view. That is exactly what happened
 		// on the first live ignition. EntityRendererCoverageTest now guards this.
-		EntityRendererRegistry.register(CosmosEntities.ROCKET, InvisibleEntityRenderer::new);
-		EntityRendererRegistry.register(CosmosEntities.CAPSULE, InvisibleEntityRenderer::new);
-		EntityRendererRegistry.register(CosmosEntities.TRANSIT, InvisibleEntityRenderer::new);
+		ModelLayerRegistry.registerModelLayer(RocketModel.LAYER, RocketModel::createLayer);
+		EntityRendererRegistry.register(CosmosEntities.ROCKET, RocketRenderer::new);
+		ModelLayerRegistry.registerModelLayer(CapsuleModel.LAYER, CapsuleModel::createLayer);
+		ModelLayerRegistry.registerModelLayer(CapsuleModel.CANOPY_LAYER,
+				CapsuleModel::createCanopyLayer);
+		EntityRendererRegistry.register(CosmosEntities.CAPSULE, CapsuleRenderer::new);
+		EntityRendererRegistry.register(CosmosEntities.TRANSIT, TransitRenderer::new);
 
 		ClientPlayNetworking.registerGlobalReceiver(CosmosNet.PlanetariumS2C.TYPE,
 				(payload, context) -> context.client().execute(() -> {

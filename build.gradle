@@ -23,6 +23,40 @@ loom {
 			sourceSet sourceSets.client
 		}
 	}
+
+	runs {
+		gametest {
+			inherit client
+			vmArg "-Dfabric.client.gametest"
+			runDir "build/run-gametest"
+		}
+	}
+}
+
+// The render battery boots a throwaway world under build/run-gametest, and build/ is disposable,
+// so the EULA acceptance has to be re-stamped on every run.
+tasks.matching { it.name == 'runGametest' }.configureEach {
+	doFirst {
+		def runDir = file('build/run-gametest')
+		runDir.mkdirs()
+		new File(runDir, 'eula.txt').text =
+				"# written by the gametest run config; build/run-gametest is a throwaway dev world\n" +
+				"eula=true\n"
+
+		// kinetics is a hard dependency and is not on the dev classpath as a mod, so the client
+		// refuses to start without it. build/ is disposable, so it is re-copied every run.
+		def mods = new File(runDir, 'mods')
+		mods.mkdirs()
+		def kinetics = file("${rootDir}/../lilkuzco_kinetics/fabric/build/libs/"
+				+ "lilkuzco-kinetics-${kinetics_version}.jar")
+		if (!kinetics.exists()) {
+			throw new GradleException("the render battery needs ${kinetics}; build kinetics first")
+		}
+		mods.listFiles()?.each { it.delete() }
+		java.nio.file.Files.copy(kinetics.toPath(),
+				new File(mods, kinetics.name).toPath(),
+				java.nio.file.StandardCopyOption.REPLACE_EXISTING)
+	}
 }
 
 dependencies {

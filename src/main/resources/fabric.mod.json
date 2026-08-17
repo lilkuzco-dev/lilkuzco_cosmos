@@ -16,6 +16,9 @@
     ],
     "client": [
       "dev.lilkuzco.cosmos.client.CosmosClient"
+    ],
+    "fabric-client-gametest": [
+      "dev.lilkuzco.cosmos.client.CosmosRenderTest"
     ]
   },
   "depends": {
