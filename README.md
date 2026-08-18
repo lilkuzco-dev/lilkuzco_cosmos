@@ -283,4 +283,5 @@ pipeline actually running.
 ## Licence
 
 MIT. All art original and **generated procedurally** by `tools/gen-textures.py` — nothing traced,
-sampled or adapted. See `../ASSETS-ORIGIN.md`.
+sampled or adapted. See [`provenance/`](provenance/) — the campaign's
+asset origins, verified quarry commits, and the quarantine list.
