@@ -142,11 +142,20 @@ public class SatelliteConsoleBlockEntity extends BlockEntity {
         var state = kinetics.orbits().stateAt(satelliteId, kinetics.worldTimeSeconds());
         if (state == null) return;
 
-        ReconImager.Report report = ReconImager.image((ServerLevel) player.level(), satelliteId,
+        // Image the OVERWORLD, not the level the operator happens to be standing in. These
+        // orbits are around the overworld and the ground track is in overworld coordinates;
+        // reading them against another dimension's terrain samples the wrong planet at the
+        // right numbers. It used to use player.level(), which was correct only because nobody
+        // had yet built a console on the Moon - and would have failed silently when they did.
+        ServerLevel imaged = player.level().getServer().overworld();
+
+        ReconImager.Report report = ReconImager.image(imaged, satelliteId,
                 state.groundTrack(), entry.record().payload().sensorHalfAngleDeg());
-        for (Component line : ReconImager.render(report, entry.record().name())) {
-            player.sendSystemMessage(line);
-        }
+
+        // Straight to the console. The report is data on the wire and the screen lays it out;
+        // it used to be chat, which meant the answer arrived behind the screen that asked for it.
+        ServerPlayNetworking.send(player,
+                new CosmosNet.ReconS2C(entry.record().name(), report));
     }
 
     /**

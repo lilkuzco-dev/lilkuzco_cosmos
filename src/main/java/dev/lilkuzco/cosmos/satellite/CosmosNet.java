@@ -9,7 +9,9 @@ import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * The planetarium wire protocol.
@@ -82,6 +84,75 @@ public final class CosmosNet {
         public CustomPacketPayload.Type<PlanetariumS2C> type() { return TYPE; }
     }
 
+    /**
+     * S2C: the result of one imaging pass.
+     *
+     * <p>The report crosses the wire as <b>data</b>, not as pre-rendered chat lines. That is the
+     * whole point of this packet: the console screen needs the numbers to lay them out, and a
+     * list of {@code Component}s cannot be drawn into a panel. Rendering it as text is now the
+     * client's job, which also means the strings localise on the machine that has the language
+     * file rather than on the server.
+     *
+     * <p>It carries {@link ReconImager.Report} verbatim so there is exactly one definition of
+     * what a report is, and the chat fallback can keep using {@link ReconImager#render}.
+     */
+    public record ReconS2C(String satelliteName, ReconImager.Report report)
+            implements CustomPacketPayload {
+
+        public static final CustomPacketPayload.Type<ReconS2C> TYPE =
+                new CustomPacketPayload.Type<>(Cosmos.id("recon_report"));
+
+        public static final StreamCodec<RegistryFriendlyByteBuf, ReconS2C> CODEC =
+                StreamCodec.of((buf, p) -> {
+                    ReconImager.Report r = p.report();
+                    buf.writeUtf(p.satelliteName());
+                    buf.writeUtf(r.satelliteId());
+                    buf.writeDouble(r.centreX());
+                    buf.writeDouble(r.centreZ());
+                    buf.writeDouble(r.footprintRadius());
+                    buf.writeVarInt(r.sampled());
+                    buf.writeVarInt(r.attempted());
+                    buf.writeVarInt(r.artificialBlocks());
+                    buf.writeVarInt(r.surfaceComposition().size());
+                    for (Map.Entry<String, Integer> e : r.surfaceComposition().entrySet()) {
+                        buf.writeUtf(e.getKey());
+                        buf.writeVarInt(e.getValue());
+                    }
+                    buf.writeVarInt(r.strongestSignals().size());
+                    for (BlockPos pos : r.strongestSignals()) {
+                        buf.writeBlockPos(pos);
+                    }
+                }, buf -> {
+                    String name = buf.readUtf();
+                    String id = buf.readUtf();
+                    double centreX = buf.readDouble();
+                    double centreZ = buf.readDouble();
+                    double radius = buf.readDouble();
+                    int sampled = buf.readVarInt();
+                    int attempted = buf.readVarInt();
+                    int artificial = buf.readVarInt();
+
+                    // LinkedHashMap, not HashMap: the server sorted the composition by count and
+                    // the screen draws it in that order. A HashMap here would shuffle the rows
+                    // every time the packet arrived.
+                    int composed = buf.readVarInt();
+                    Map<String, Integer> composition = new LinkedHashMap<>();
+                    for (int i = 0; i < composed; i++) {
+                        composition.put(buf.readUtf(), buf.readVarInt());
+                    }
+                    int signalCount = buf.readVarInt();
+                    List<BlockPos> signals = new ArrayList<>(signalCount);
+                    for (int i = 0; i < signalCount; i++) {
+                        signals.add(buf.readBlockPos());
+                    }
+                    return new ReconS2C(name, new ReconImager.Report(id, centreX, centreZ, radius,
+                            sampled, attempted, artificial, composition, signals));
+                });
+
+        @Override
+        public CustomPacketPayload.Type<ReconS2C> type() { return TYPE; }
+    }
+
     /** C2S: act on a satellite. */
     public record ConsoleActionC2S(BlockPos console, String satelliteId, String action,
                                    String argument) implements CustomPacketPayload {
@@ -109,6 +180,7 @@ public final class CosmosNet {
 
     public static void registerCommon() {
         PayloadTypeRegistry.clientboundPlay().register(PlanetariumS2C.TYPE, PlanetariumS2C.CODEC);
+        PayloadTypeRegistry.clientboundPlay().register(ReconS2C.TYPE, ReconS2C.CODEC);
         PayloadTypeRegistry.serverboundPlay().register(ConsoleActionC2S.TYPE, ConsoleActionC2S.CODEC);
 
         ServerPlayNetworking.registerGlobalReceiver(ConsoleActionC2S.TYPE, (payload, context) ->

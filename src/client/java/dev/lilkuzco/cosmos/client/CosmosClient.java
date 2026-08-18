@@ -3,16 +3,18 @@ package dev.lilkuzco.cosmos.client;
 import dev.lilkuzco.cosmos.CosmosEntities;
 import dev.lilkuzco.cosmos.CosmosMenus;
 import dev.lilkuzco.cosmos.satellite.CosmosNet;
+import dev.lilkuzco.cosmos.satellite.ReconImager;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.fabricmc.fabric.api.client.rendering.v1.EntityRendererRegistry;
 import net.fabricmc.fabric.api.client.rendering.v1.ModelLayerRegistry;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.MenuScreens;
+import net.minecraft.network.chat.Component;
 
 /**
  * Client wiring. Three jobs: register the two screens, register the two renderers, and receive
- * planetarium snapshots.
+ * what the server sends the console - constellation snapshots and imaging passes.
  */
 public final class CosmosClient implements ClientModInitializer {
 
@@ -48,6 +50,27 @@ public final class CosmosClient implements ClientModInitializer {
 					} else if (payload.openScreen()) {
 						client.gui.setScreen(new PlanetariumScreen(payload.console(),
 								payload.satellites(), payload.planetRadius()));
+					}
+				}));
+
+		// Imaging passes. The report is drawn INTO the open planetarium rather than printed to
+		// chat, which is the whole reason this packet exists: the operator clicked Image while
+		// looking at the console, and chat is behind the console.
+		//
+		// The chat path survives as a fallback for the one case it is still right for - the
+		// screen was closed during the round trip - because a report that arrives with nowhere
+		// to be drawn should be delivered somewhere rather than dropped on the floor.
+		ClientPlayNetworking.registerGlobalReceiver(CosmosNet.ReconS2C.TYPE,
+				(payload, context) -> context.client().execute(() -> {
+					PlanetariumScreen open = PlanetariumScreen.open();
+					if (open != null) {
+						open.showRecon(payload.satelliteName(), payload.report());
+						return;
+					}
+					if (context.client().player == null) return;
+					for (Component line : ReconImager.render(payload.report(),
+							payload.satelliteName())) {
+						context.client().player.sendSystemMessage(line);
 					}
 				}));
 	}

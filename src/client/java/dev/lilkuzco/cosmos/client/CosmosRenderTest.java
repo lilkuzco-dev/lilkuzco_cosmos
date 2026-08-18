@@ -3,6 +3,19 @@ package dev.lilkuzco.cosmos.client;
 import net.fabricmc.fabric.api.client.gametest.v1.FabricClientGameTest;
 import net.fabricmc.fabric.api.client.gametest.v1.context.ClientGameTestContext;
 import net.fabricmc.fabric.api.client.gametest.v1.context.TestSingleplayerContext;
+import dev.lilkuzco.cosmos.satellite.ReconImager;
+import dev.lilkuzco.cosmos.satellite.SatelliteConsoleBlockEntity;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.world.item.CreativeModeTab;
+import net.minecraft.world.item.CreativeModeTabs;
+
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 /**
  * The client render battery.
@@ -162,6 +175,123 @@ public class CosmosRenderTest implements FabricClientGameTest {
 			// flight, so the wait is not padding - it is the flight. Removing it produced six
 			// "not in the registry" refusals and no capsule at all.
 			context.waitTicks(1500);
+
+			// ---- 5a. the console screens ----------------------------------------
+			//
+			// Placed here, before the deorbits below, because this is the only window in the
+			// battery where satellites are actually in orbit - the planetarium has nothing to
+			// draw either side of it, and flying another 1,500-tick launch for a roster would
+			// double the run time for no extra evidence.
+
+			// (i) The creative menu, as an assertion rather than a picture.
+			//
+			// CreativeModeTabEvents.insertAfter() is a SILENT no-op when its anchor item is not
+			// in the tab, and every cosmos insertion is chained off the one before it: the pad
+			// after the beacon, the frame after the pad, the console after the tank. A single
+			// missing anchor therefore drops the WHOLE chain out of the menu with no crash, no
+			// log line, and every other check in this battery still green.
+			server.runCommand("gamemode creative @p");
+			context.waitTicks(5);
+			String creative = context.computeOnClient(client -> {
+				// Tab contents are built lazily - a fresh client has the tab OBJECTS but no items
+				// in them until something asks. Opening the creative menu is what normally does
+				// this; doing it directly is the same call with no GUI in the way. Without it the
+				// scan below sees zero items and the vacuity guard trips, which is how this was
+				// found rather than shipped as a check of nothing.
+				CreativeModeTabs.tryRebuildTabContents(
+						client.level.enabledFeatures(),
+						client.options.operatorItemsTab().get(),
+						client.level.registryAccess());
+
+				Set<String> shown = new LinkedHashSet<>();
+				int total = 0;
+				for (CreativeModeTab tab : CreativeModeTabs.allTabs()) {
+					for (var stack : tab.getDisplayItems()) {
+						total++;
+						var id = BuiltInRegistries.ITEM.getKey(stack.getItem());
+						if (id != null && id.getNamespace().equals("cosmos")) {
+							shown.add(id.getPath());
+						}
+					}
+				}
+				// Without this, an unbuilt menu would let every membership test below pass by
+				// finding nothing missing from nothing.
+				if (total == 0) return "!EMPTY";
+				List<String> absent = new ArrayList<>();
+				for (String want : CREATIVE_BLOCKS) {
+					if (!shown.contains(want)) absent.add(want);
+				}
+				return String.join(", ", absent);
+			});
+			if ("!EMPTY".equals(creative)) {
+				throw new AssertionError("the creative menu built zero items, so this check can "
+						+ "see nothing and would pass vacuously - fix the check, not the mod");
+			}
+			if (!creative.isEmpty()) {
+				throw new AssertionError("missing from the creative menu: " + creative
+						+ " - the insertAfter chain in CosmosBlocks.register() has lost an anchor");
+			}
+
+			// (ii) The planetarium itself, over the real packet path.
+			//
+			// sendSnapshot is exactly what right-clicking the block calls, so this is the
+			// production route rather than a screen constructed in the test.
+			server.runCommand("setblock -32 100 -32 cosmos:satellite_console");
+			server.runCommand("tp @p -30 100 -32 -90 0");
+			context.waitTicks(10);
+			server.runOnServer(mc -> SatelliteConsoleBlockEntity.sendSnapshot(
+					mc.getPlayerList().getPlayers().get(0), new BlockPos(-32, 100, -32), true));
+			context.waitForScreen(PlanetariumScreen.class);
+			context.waitTicks(10);
+			context.takeScreenshot("cosmos_console_planetarium");
+
+			// (iii) Task real passes and photograph what comes back.
+			//
+			// Sweep rather than take one shot: whether a pass sees anything depends on where the
+			// sub-satellite point is at that moment, and most of a 2.9 km footprint is over
+			// chunks nobody has loaded. Some of these frames will be NO COVERAGE, which is a
+			// distinct render path and worth having on record too.
+			for (int shot = 0; shot < 6; shot++) {
+				if (!context.tryClickScreenButton("cosmos.planetarium.image")
+						&& !context.tryClickScreenButton("Image")) {
+					throw new AssertionError("no Image button on the planetarium - the button "
+							+ "row did not build, or its label stopped matching");
+				}
+				context.waitTicks(20);
+				context.takeScreenshot(String.format("cosmos_console_recon_live_%02d", shot));
+				context.waitTicks(20);
+			}
+
+			// (iv) Model boards for the two report layouts.
+			//
+			// A real pass cannot be relied on to fill the panel: the imager samples a 15x15 grid
+			// across the footprint, so its points are ~206 m apart and nearly all of them land in
+			// unloaded chunks. The sweep above proves the PATH; these prove the LAYOUT - four
+			// composition rows, five returns, a clipped block id and the blind case - which is
+			// the part only a screenshot can judge. This is the showcapsule lesson: build the
+			// fast loop rather than chase the slow one.
+			String reconId = context.computeOnClient(client -> {
+				PlanetariumScreen screen = PlanetariumScreen.open();
+				return screen == null ? null : screen.selectedId();
+			});
+			if (reconId == null) {
+				throw new AssertionError("the planetarium closed, or its roster is empty, before "
+						+ "the model boards - nothing reached orbit in this run");
+			}
+			context.runOnClient(client -> PlanetariumScreen.open()
+					.showRecon("Eye 1", boardReport(reconId, false)));
+			context.waitTicks(5);
+			context.takeScreenshot("cosmos_console_recon_board");
+
+			context.runOnClient(client -> PlanetariumScreen.open()
+					.showRecon("Eye 1", boardReport(reconId, true)));
+			context.waitTicks(5);
+			context.takeScreenshot("cosmos_console_recon_board_blind");
+
+			// Hand the camera back. Everything below needs an unobstructed view.
+			context.runOnClient(client -> client.gui.setScreen(null));
+			context.waitTicks(5);
+
 			for (int serial = 1; serial <= 6; serial++) {
 				server.runCommand("cosmos deorbit cosmos:sat-" + serial);
 			}
@@ -205,5 +335,38 @@ public class CosmosRenderTest implements FabricClientGameTest {
 				context.waitTicks(4);
 			}
 		}
+	}
+
+	/** Every cosmos block that must be reachable from the creative menu. */
+	private static final String[] CREATIVE_BLOCKS = {
+			"launch_pad", "pad_frame", "fuel_tank", "satellite_console", "oxygen_station",
+			"electrolyser", "regolith_kiln", "ammonia_cracker",
+			"regolith", "mare_basalt", "lunar_ice", "sintered_regolith",
+			"tholin_sand", "haze_bedrock", "ammonia_ice" };
+
+	/**
+	 * A report with every field populated, for photographing the panel.
+	 *
+	 * <p>Deliberately awkward: {@code sintered_regolith} is longer than the column is wide and
+	 * must come back clipped, the coverage is partial so the figure renders in the warning
+	 * colour, and there are five returns against a panel with room for four.
+	 *
+	 * @param blind the zero-coverage case, which takes a different path through the panel
+	 */
+	private static ReconImager.Report boardReport(String satelliteId, boolean blind) {
+		if (blind) {
+			return new ReconImager.Report(satelliteId, -1280.0, 2432.0, 1443.0,
+					0, 173, 0, new LinkedHashMap<>(), List.of());
+		}
+		Map<String, Integer> composition = new LinkedHashMap<>();
+		composition.put("grass_block", 41);
+		composition.put("stone", 22);
+		composition.put("sintered_regolith", 9);
+		composition.put("water", 6);
+		return new ReconImager.Report(satelliteId, -1280.0, 2432.0, 1443.0,
+				96, 173, 14, composition,
+				List.of(new BlockPos(-1312, 71, 2401), new BlockPos(-1298, 68, 2440),
+						new BlockPos(-1275, 74, 2418), new BlockPos(-1260, 70, 2455),
+						new BlockPos(-1244, 69, 2390)));
 	}
 }

@@ -1,6 +1,7 @@
 package dev.lilkuzco.cosmos.client;
 
 import dev.lilkuzco.cosmos.satellite.CosmosNet;
+import dev.lilkuzco.cosmos.satellite.ReconImager;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Button;
@@ -8,7 +9,9 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 /**
  * The planetarium. <b>Every pixel is drawn, not textured.</b>
@@ -40,17 +43,40 @@ public class PlanetariumScreen extends Screen {
     private static final int TEXT_DIM = 0xFF6C8299;
     private static final int ACCENT = 0xFF57D6A2;
 
+    /**
+     * The console is 320x224. The height is set by the widgets, not the panels: every button on
+     * this screen must sit OUTSIDE the drawn areas, because the panels are painted after the
+     * widgets and an opaque fill over a button leaves it perfectly clickable and completely
+     * invisible. The render battery caught exactly that - Image and the two roster arrows were
+     * under the roster panel for the whole of 0.2.x.
+     */
+    private static final int PANEL_W = 320;
+    private static final int PANEL_H = 224;
+
     private final BlockPos console;
     private List<CosmosNet.SatelliteView> satellites;
     private double planetRadius;
     private int selected;
     private float spin;
 
+    /**
+     * The most recent imaging pass, or null. Held with the satellite id it belongs to (inside the
+     * report itself) rather than with the roster index, so it is impossible for it to end up
+     * captioned with the wrong satellite: cycling the selection hides it and cycling back shows
+     * it, with no clearing logic to forget to call.
+     */
+    private ReconImager.Report recon;
+    private String reconName;
+
     // The client receiver needs to know whether a planetarium is already open so a refresh
     // updates it in place instead of reopening it and resetting the selection.
     private static PlanetariumScreen open;
 
     public static PlanetariumScreen open() { return open; }
+
+    private int panelLeft() { return width / 2 - PANEL_W / 2; }
+
+    private int panelTop() { return height / 2 - PANEL_H / 2; }
 
     public PlanetariumScreen(BlockPos console, List<CosmosNet.SatelliteView> satellites,
                              double planetRadius) {
@@ -65,7 +91,38 @@ public class PlanetariumScreen extends Screen {
         this.satellites = views;
         this.planetRadius = radius;
         if (selected >= views.size()) selected = Math.max(0, views.size() - 1);
+        // A report about something that has deorbited is not history, it is a lie about what is
+        // up there. Drop it when its subject leaves the roster.
+        if (recon != null && views.stream().noneMatch(v -> v.id().equals(recon.satelliteId()))) {
+            recon = null;
+            reconName = null;
+        }
         rebuildButtons();
+    }
+
+    /** Receive an imaging pass from the server. */
+    public void showRecon(String satelliteName, ReconImager.Report report) {
+        this.recon = report;
+        this.reconName = satelliteName;
+        // Snap the roster to whatever was imaged, so the panel and the highlight agree even if
+        // the operator cycled while the packet was in flight.
+        for (int i = 0; i < satellites.size(); i++) {
+            if (satellites.get(i).id().equals(report.satelliteId())) {
+                selected = i;
+                break;
+            }
+        }
+    }
+
+    /** The satellite the roster is on, or null when it is empty. For the render battery. */
+    String selectedId() {
+        return satellites.isEmpty() ? null : satellites.get(selected).id();
+    }
+
+    /** Whether the held report describes the satellite currently selected. */
+    private boolean hasReconForSelection() {
+        return recon != null && !satellites.isEmpty()
+                && satellites.get(selected).id().equals(recon.satelliteId());
     }
 
     @Override
@@ -84,24 +141,27 @@ public class PlanetariumScreen extends Screen {
         clearWidgets();
         if (satellites.isEmpty()) return;
 
-        int x = width / 2 - 158;
-        int y = height / 2 + 78;
-
-        addRenderableWidget(Button.builder(Component.translatable("cosmos.planetarium.image"),
-                b -> send(CosmosNet.ConsoleActionC2S.ACTION_IMAGE)).bounds(x, y, 96, 20).build());
-        addRenderableWidget(Button.builder(Component.translatable("cosmos.planetarium.deorbit"),
-                b -> send(CosmosNet.ConsoleActionC2S.ACTION_DEORBIT))
-                .bounds(x + 100, y, 96, 20).build());
-        addRenderableWidget(Button.builder(Component.translatable("cosmos.planetarium.refresh"),
-                b -> send(CosmosNet.ConsoleActionC2S.ACTION_REFRESH))
-                .bounds(x + 200, y, 96, 20).build());
+        int left = panelLeft();
+        int top = panelTop();
 
         // Selection by button rather than by clicking a row: at this scale the roster rows are
-        // 20 px tall and a mis-click would command a deorbit on the wrong satellite.
+        // 20 px tall and a mis-click would command a deorbit on the wrong satellite. They sit in
+        // the strip ABOVE the roster, which is kept clear of every fill for that reason.
         addRenderableWidget(Button.builder(Component.literal("<"),
-                b -> cycle(-1)).bounds(x, y - 24, 20, 20).build());
+                b -> cycle(-1)).bounds(left + 4, top + 16, 20, 20).build());
         addRenderableWidget(Button.builder(Component.literal(">"),
-                b -> cycle(1)).bounds(x + 22, y - 24, 20, 20).build());
+                b -> cycle(1)).bounds(left + 26, top + 16, 20, 20).build());
+
+        int row = top + 196;
+        addRenderableWidget(Button.builder(Component.translatable("cosmos.planetarium.image"),
+                b -> send(CosmosNet.ConsoleActionC2S.ACTION_IMAGE))
+                .bounds(left + 4, row, 100, 20).build());
+        addRenderableWidget(Button.builder(Component.translatable("cosmos.planetarium.deorbit"),
+                b -> send(CosmosNet.ConsoleActionC2S.ACTION_DEORBIT))
+                .bounds(left + 108, row, 100, 20).build());
+        addRenderableWidget(Button.builder(Component.translatable("cosmos.planetarium.refresh"),
+                b -> send(CosmosNet.ConsoleActionC2S.ACTION_REFRESH))
+                .bounds(left + 212, row, 100, 20).build());
     }
 
     private void cycle(int delta) {
@@ -121,10 +181,10 @@ public class PlanetariumScreen extends Screen {
         super.extractRenderState(g, mouseX, mouseY, partialTick);
         spin += partialTick * 0.12F;
 
-        int left = width / 2 - 160;
-        int top = height / 2 - 100;
-        int w = 320;
-        int h = 200;
+        int left = panelLeft();
+        int top = panelTop();
+        int w = PANEL_W;
+        int h = PANEL_H;
 
         g.fill(left, top, left + w, top + h, BACKDROP);
         g.fill(left, top, left + w, top + 14, PANEL);
@@ -133,13 +193,20 @@ public class PlanetariumScreen extends Screen {
 
         if (satellites.isEmpty()) {
             g.text(font, Component.translatable("cosmos.planetarium.empty"), left + 12, top + 40, TEXT_DIM);
-                return;
+            return;
         }
 
-        drawRoster(g, left + 4, top + 18, 108, h - 26);
-        drawOrbitView(g, left + 118, top + 18, 96, 96);
-        drawGroundTrack(g, left + 118, top + 118, 196, 62);
-        drawTelemetry(g, left + 220, top + 18, 96, 96);
+        drawRoster(g, left + 4, top + 40, 108, 152);
+        if (hasReconForSelection()) {
+            // The report takes the top row - the orbit ellipse and the telemetry column - and
+            // deliberately leaves the ground track below it, because the ground track is the
+            // panel that shows WHERE this report was taken.
+            drawRecon(g, left + 118, top + 16, 198, 104);
+        } else {
+            drawOrbitView(g, left + 118, top + 16, 96, 104);
+            drawTelemetry(g, left + 220, top + 16, 96, 104);
+        }
+        drawGroundTrack(g, left + 118, top + 124, 196, 68);
     }
 
     /** Left panel: the roster, selectable. */
@@ -232,16 +299,117 @@ public class PlanetariumScreen extends Screen {
         g.text(font, Component.translatable("cosmos.planetarium.ground_track"), x + 3, y + 2, TEXT_DIM);
     }
 
+    /**
+     * Top row, when a pass has been taken: what the satellite saw.
+     *
+     * <p>Two columns of the same label-over-value rows the telemetry panel uses, because this is
+     * the same kind of information and inventing a second visual language for it would only make
+     * the console harder to read. Nothing wraps and nothing grows the panel - the ground track
+     * below it is fixed - so a list that does not fit reports how much it could not show rather
+     * than ending quietly at the panel edge.
+     */
+    private void drawRecon(GuiGraphicsExtractor g, int x, int y, int w, int h) {
+        g.fill(x, y, x + w, y + h, PANEL);
+        g.fill(x, y, x + w, y + 11, 0xFF16202C);
+        g.text(font, Component.translatable("cosmos.recon.panel.title"), x + 4, y + 2, ACCENT);
+        if (reconName != null) {
+            // Right-aligned. Butting it up against the title at a fixed offset produced
+            // "RECON PASSEye 1" the moment the title was as wide as the offset.
+            int nameX = x + w - 4 - font.width(reconName);
+            g.text(font, Component.literal(reconName), Math.max(x + 68, nameX), y + 2, TEXT_DIM);
+        }
+
+        ReconImager.Report r = recon;
+
+        // Nothing under the track was loaded. Say so loudly and stop - every other field would
+        // be a zero that reads like a measurement.
+        if (r.sampled() == 0) {
+            g.text(font, Component.translatable("cosmos.recon.panel.no_coverage"),
+                    x + 4, y + 20, MARKER_DECAY);
+            g.text(font, Component.translatable("cosmos.recon.panel.no_coverage_hint"),
+                    x + 4, y + 32, TEXT_DIM);
+            return;
+        }
+
+        int colA = x + 4;
+        int colB = x + w / 2 + 2;
+        int bottom = y + h;
+
+        reconRow(g, colA, y + 14, "cosmos.recon.panel.centre",
+                String.format("%.0f, %.0f", r.centreX(), r.centreZ()), TEXT);
+        reconRow(g, colA, y + 32, "cosmos.recon.panel.footprint",
+                String.format("r %.0f m", r.footprintRadius()), TEXT);
+
+        boolean partial = r.partial();
+        reconRow(g, colB, y + 14, "cosmos.recon.panel.coverage",
+                String.format("%.0f%%", r.coverage() * 100.0), partial ? MARKER_DECAY : TEXT);
+        reconRow(g, colB, y + 32, "cosmos.recon.panel.worked",
+                r.foundConstruction() ? String.valueOf(r.artificialBlocks()) : "--",
+                r.foundConstruction() ? ACCENT : TEXT_DIM);
+
+        // Left: what the ground is made of. Right: where the interesting bits are.
+        g.text(font, Component.translatable("cosmos.recon.panel.surface"), colA, y + 50, TEXT_DIM);
+        List<String> surface = new ArrayList<>();
+        r.surfaceComposition().forEach((name, count) -> surface.add(clip(name, 11) + " " + count));
+        drawList(g, colA, y + 59, bottom, surface, TEXT);
+
+        g.text(font, Component.translatable("cosmos.recon.panel.returns"), colB, y + 50, TEXT_DIM);
+        if (r.strongestSignals().isEmpty()) {
+            g.text(font, Component.translatable("cosmos.recon.panel.none"), colB, y + 59, TEXT_DIM);
+        } else {
+            List<String> returns = new ArrayList<>();
+            for (BlockPos pos : r.strongestSignals()) {
+                returns.add(pos.getX() + " " + pos.getY() + " " + pos.getZ());
+            }
+            drawList(g, colB, y + 59, bottom, returns, MARKER);
+        }
+    }
+
+    /**
+     * Draw a list into whatever room is left, and <b>say so</b> when it does not all fit.
+     *
+     * <p>The panel is 96 px tall and the imager can return five returns against room for four.
+     * Ending the column early would read as "that is all there was", which is the one thing a
+     * reconnaissance display must never imply - so the last usable line reports the count it
+     * could not show instead of quietly being the tail.
+     */
+    private void drawList(GuiGraphicsExtractor g, int x, int y, int bottom, List<String> rows,
+                          int colour) {
+        for (int i = 0; i < rows.size(); i++) {
+            if (y + 8 > bottom) return;
+            int remaining = rows.size() - i;
+            if (y + 17 > bottom && remaining > 1) {
+                g.text(font, Component.translatable("cosmos.recon.panel.more", remaining),
+                        x, y, TEXT_DIM);
+                return;
+            }
+            g.text(font, Component.literal(rows.get(i)), x, y, colour);
+            y += 9;
+        }
+    }
+
+    /** One label-over-value pair, matching the telemetry column's rhythm. */
+    private void reconRow(GuiGraphicsExtractor g, int x, int y, String key, String value,
+                          int colour) {
+        g.text(font, Component.translatable(key), x, y, TEXT_DIM);
+        g.text(font, Component.literal(value), x, y + 9, colour);
+    }
+
+    /** Block ids are longer than a 93 px column. Cut rather than overrun the panel. */
+    private static String clip(String text, int max) {
+        return text.length() <= max ? text : text.substring(0, max - 1) + "\u2026";
+    }
+
     /** Right panel: the numbers. */
     private void drawTelemetry(GuiGraphicsExtractor g, int x, int y, int w, int h) {
         g.fill(x, y, x + w, y + h, PANEL);
         CosmosNet.SatelliteView v = satellites.get(selected);
 
-        int line = y + 4;
+        int line = y + 3;
         g.text(font, Component.literal(v.name()), x + 4, line, ACCENT);
         line += 12;
         g.text(font, Component.literal(v.payload()), x + 4, line, TEXT_DIM);
-        line += 14;
+        line += 13;
 
         line = telemetry(g, x, line, "cosmos.planetarium.altitude",
                 String.format("%.0f m", v.altitude()));
@@ -253,14 +421,19 @@ public class PlanetariumScreen extends Screen {
                 v.nextPassSeconds() < 0 ? "--" : String.format("%.0f s", v.nextPassSeconds()));
 
         if (v.decaying()) {
-            g.text(font, Component.translatable("cosmos.planetarium.decaying"), x + 4, line + 4, MARKER_DECAY);
+            g.text(font, Component.translatable("cosmos.planetarium.decaying"), x + 4, line + 1, MARKER_DECAY);
         }
     }
 
+    /**
+     * One label-over-value pair. The 17 px pitch is load-bearing: at the 21 px it used to be,
+     * four rows put NEXT PASS's value 14 px below the bottom of its own panel, where the ground
+     * track was painted over it. The value was drawn every frame and never once seen.
+     */
     private int telemetry(GuiGraphicsExtractor g, int x, int y, String key, String value) {
         g.text(font, Component.translatable(key), x + 4, y, TEXT_DIM);
         g.text(font, Component.literal(value), x + 4, y + 9, TEXT);
-        return y + 21;
+        return y + 17;
     }
 
     // ---- primitives -------------------------------------------------------

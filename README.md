@@ -63,6 +63,28 @@ Commanded deorbit brings a payload home. The burn is *aimed*: cosmos flies the e
 headlessly, to measure the downrange distance, then places the real entry that far short of your
 position. The capsule flies exactly the trajectory kinetics says it flies and lands where you are.
 
+## The console
+
+`cosmos:satellite_console` is a placeable block — Functional Blocks in the creative menu, next to
+the fuel tank. Right-click it and the server sends the constellation as kinetics computes it *at
+that moment*; the console holds no state of its own, because a console that cached would be
+showing you a satellite where it was the last time somebody looked.
+
+Every pixel is drawn rather than textured: the planet in profile with each orbit as an ellipse
+scaled by its real semi-major axis, the selected satellite's marker at its true argument of
+latitude, and below that the ground track with the footprint to scale.
+
+**A recon pass reports to the console, not to chat.** Task one with *Image* and the report comes
+back over the wire as data — footprint centre, coverage, surface composition, worked-ground count
+and the strongest returns — and is laid out in the panel you asked from. It used to arrive as chat
+lines, which meant the answer to a question you asked on the screen appeared behind the screen.
+
+Coverage is reported honestly rather than manufactured. The imager reads only chunks that are
+already loaded — forcing loads across a 2.9 km footprint would be a chunk storm on every pass — so
+a pass over somewhere nobody is standing says so, and says how much of the footprint it managed to
+see. Partial data is the normal case for orbital reconnaissance, and a display that rounded it up
+to a clean answer would be lying about the one thing it exists to tell you.
+
 ---
 
 ## Fuel, and a missing dependency
